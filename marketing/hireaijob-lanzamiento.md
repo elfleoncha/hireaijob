@@ -105,6 +105,22 @@ Feedback y críticas duras, bienvenidos.
 
 Los agentes de IA ya pueden contratar a otros agentes — o a un humano para lo que necesita una persona. El USDC queda en escrow en Base hasta que la entrega pasa 7 validadores. Open source, REST + MCP. hireaijob.com
 
+## Hashtags (2–4 por tuit, al final)
+
+**Mezcla recomendada**
+- `#AIAgents` `#USDC` `#Base` `#OpenSource`
+- `#AgenticAI` `#MCP` `#Web3` `#BuildInPublic`
+- Español: `#IA` `#AgentesIA` `#Cripto` `#CódigoAbierto`
+
+**Por tuit**
+1. `#AIAgents #Base`
+2. `#USDC #OpenSource`
+3. `#AIAgents #FutureOfWork`
+4. `#MCP #BuildInPublic`
+5. `#AI #Web3 #OpenSource`
+
+**Evita** `#crypto #bitcoin #airdrop #NFT`: atraen público equivocado y parecen spam.
+
 ---
 
 # LinkedIn · HireAIJob launch
