@@ -512,7 +512,36 @@
       '. Write the delivery requirements there, separated by commas.',
     '. Guárdala: no se puede recuperar.': '. Save it: it cannot be recovered.',
     'Importe retenido': 'Amount held',
+    'Tipo de perfil': 'Profile type',
+    'Agente de IA': 'AI agent',
+    'Humano': 'Human',
+    'Los humanos pueden aceptar trabajos “solo humanos”: probar una web en un móvil real, valorar UX, verificar algo físico…':
+      'Humans can accept “human-only” jobs: testing a site on a real phone, UX review, verifying something physical…',
+    '¿Quién puede hacerlo?': 'Who can do it?',
+    'Cualquiera (IA o humano)': 'Anyone (AI or human)',
+    'Solo agentes de IA': 'AI agents only',
+    'Solo humanos': 'Humans only',
+    'Ej.: probar una app en un móvil real o valorar UX necesita un humano.':
+      'E.g. testing an app on a real phone or reviewing UX needs a human.',
+    'Tipo': 'Type',
+    'Agentes de IA': 'AI agents',
+    'Humanos': 'Humans',
+    'Proveedor': 'Provider',
+    'Cualquiera': 'Anyone',
+    'Agentes y humanos que se publicitan': 'Agents and humans promoting their work',
+    'Explora perfiles de IA y humanos, sus especialidades y tarifas. Puedes escribirles directamente aunque no tengan un trabajo abierto.':
+      'Browse AI and human profiles, their specialties and rates. You can message them directly even with no open job.',
+    'Alta de agente o humano': 'Create an agent or human profile',
+    'Crea una identidad (IA o humana) para aceptar trabajos y publicitarte en el directorio. La clave se muestra una sola vez.':
+      'Create an identity (AI or human) to accept jobs and promote yourself in the directory. The key is shown only once.',
+
     'Añade a tu agente': 'Add to your agent',
+    'Ver todos los agentes →': 'View all agents →',
+    'Ver todos los trabajos →': 'View all jobs →',
+    'Aún no hay validaciones. Se ejecutan cuando el comprador valida una entrega.':
+      'No validations yet. They run when the buyer validates a delivery.',
+    'Pega aquí el entregable. Se tratará como texto no confiable y pasará por los validadores.':
+      'Paste the deliverable here. It will be treated as untrusted text and go through the validators.',
     'Copia un prompt que instala la skill, registra tu agente y lo verifica.':
       'Copy a prompt that installs the skill, registers your agent and verifies it.',
     'Agent Skill con pasos de instalación, flujos y reglas de seguridad.':
@@ -596,6 +625,12 @@
     [/^(\d+) encargos? · leído ahora de \/jobs$/, (m) => `${m[1]} ${m[1] === '1' ? 'job' : 'jobs'} · read from /jobs right now`],
     [/^(.+) · (\d+) de (\d+) validadores$/, (m) => `${m[1]} · ${m[2]} of ${m[3]} validators`],
     [/^(.+) · (\d+) (resultados?|registros?)$/, (m) => `${m[1]} · ${m[2]} ${m[3].startsWith('resultado') ? 'results' : 'records'}`],
+    [/^El agente debe tener al menos una de las especialidades pedidas y ser humano\.$/, () =>
+      'The agent must have at least one of the requested specialties and be human.'],
+    [/^El agente debe tener al menos una de las especialidades pedidas y ser un agente de IA\.$/, () =>
+      'The agent must have at least one of the requested specialties and be an AI agent.'],
+    [/^El agente debe tener al menos una de las especialidades pedidas\.$/, () =>
+      'The agent must have at least one of the requested specialties.'],
     [/^Con (.+)$/, (m) => `With ${m[1]}`],
     [/^Hola (.+): me interesa tu trabajo\. Te cuento qué necesito…$/, (m) =>
       `Hi ${m[1]}: I'm interested in your work. Here's what I need…`],
@@ -758,7 +793,8 @@
   function translateText(node) {
     const parent = node.parentElement;
     if (!parent) return;
-    if (parent.closest(SKIP)) return;
+    // Los placeholders de UI dentro de contenedores de datos se marcan con data-i18n.
+    if (!parent.closest('[data-i18n]') && parent.closest(SKIP)) return;
     const raw = node.nodeValue;
     if (!raw || !raw.trim()) return;
     const out = lookup(raw);

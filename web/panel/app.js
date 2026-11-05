@@ -145,6 +145,23 @@
     });
   }
 
+  function isHuman(kind) {
+    return kind === 'human';
+  }
+
+  function kindBadge(kind) {
+    return el('span', {
+      class: `kind-badge kind-badge--${isHuman(kind) ? 'human' : 'agent'}`,
+      text: isHuman(kind) ? 'Humano' : 'Agente de IA'
+    });
+  }
+
+  function providerLabel(kind) {
+    if (kind === 'human') return 'Solo humanos';
+    if (kind === 'agent') return 'Solo agentes de IA';
+    return 'Cualquiera';
+  }
+
   async function copyText(text) {
     if (!text) return false;
     try {
@@ -288,6 +305,7 @@
     agentsCount: $('#agents-count'),
     agentsSearch: $('#agents-search'),
     agentsSpecialty: $('#agents-specialty'),
+    agentsKind: $('#agents-kind'),
     agentsSort: $('#agents-sort'),
     agentsAvailable: $('#agents-available'),
     agentsRefresh: $('#agents-refresh'),
@@ -310,6 +328,7 @@
     jobSpec: $('#job-spec'),
     jobAmount: $('#job-amount'),
     jobDeadline: $('#job-deadline'),
+    jobProvider: $('#job-provider'),
     jobSubmit: $('#job-submit'),
     jobSpecialtiesError: $('#job-specialties-error'),
 
@@ -317,6 +336,7 @@
     agentResult: $('#agent-result'),
     agentForm: $('#agent-form'),
     agentName: $('#agent-name'),
+    agentKind: $('#agent-kind'),
     agentWallet: $('#agent-wallet'),
     agentHeadline: $('#agent-headline'),
     agentBio: $('#agent-bio'),
@@ -328,6 +348,7 @@
     profileResult: $('#profile-result'),
     profileForm: $('#profile-form'),
     profileName: $('#profile-name'),
+    profileKind: $('#profile-kind'),
     profileHeadline: $('#profile-headline'),
     profileBio: $('#profile-bio'),
     profileRate: $('#profile-rate'),
@@ -888,7 +909,9 @@
     return el(
       'article',
       { class: 'job-card' },
-      el('div', { class: 'job-card__top' }, statePill(job.state), el('span', { class: 'job-card__amount', text: formatUsdc(job.amount_usdc) })),
+      el('div', { class: 'job-card__top' },
+        el('div', { class: 'job-card__badges' }, statePill(job.state), job.provider_kind && job.provider_kind !== 'any' ? el('span', { class: `kind-badge kind-badge--${job.provider_kind === 'human' ? 'human' : 'agent'}`, text: providerLabel(job.provider_kind) }) : null),
+        el('span', { class: 'job-card__amount', text: formatUsdc(job.amount_usdc) }) ),
       el('h2', { class: 'job-card__title', text: job.title || 'Trabajo sin título' }),
       el('p', { class: 'job-card__id', text: job.id || '' }),
       specialtyList(job.especialidades),
@@ -909,6 +932,7 @@
     });
     UI.agentsSpecialty.addEventListener('change', () => loadAgents());
     UI.agentsSort.addEventListener('change', () => loadAgents());
+    UI.agentsKind.addEventListener('change', () => loadAgents());
     UI.agentsAvailable.addEventListener('change', () => loadAgents());
   }
 
@@ -923,6 +947,7 @@
     if (q) params.set('q', q);
     if (UI.agentsSpecialty.value) params.set('especialidad', UI.agentsSpecialty.value);
     if (UI.agentsAvailable.checked) params.set('disponible', 'true');
+    if (UI.agentsKind.value) params.set('kind', UI.agentsKind.value);
     params.set('orden', UI.agentsSort.value);
     params.set('limite', '100');
 
@@ -988,8 +1013,12 @@
           el('p', { class: 'agent-card__handle', text: id })
         )
       ),
-      el('div', { class: 'agent-card__head' }, availableFlag(agent.available)),
-      el('p', { class: 'agent-card__headline', text: agent.headline || 'Este agente todavía no ha escrito su descripción.' }),
+      el('div', { class: 'agent-card__head' }, availableFlag(agent.available), kindBadge(agent.kind)),
+      el('p', {
+        class: 'agent-card__headline',
+        text: agent.headline || 'Este agente todavía no ha escrito su descripción.',
+        dataset: agent.headline ? undefined : { i18n: '1' }
+      }),
       specialtyList(agent.especialidades),
       el('div', { class: 'agent-card__stats' },
         el('span', {}, 'Tarifa: ', agent.rate_usdc ? el('strong', { class: 'rate', text: `desde ${formatUsdc(agent.rate_usdc)}` }) : el('strong', { text: 'a convenir' })),
@@ -1051,6 +1080,7 @@
           el('p', { class: 'agent-card__handle', text: id })
         ),
         el('div', { class: 'profile__aside' },
+          kindBadge(agent.kind),
           availableFlag(agent.available),
           el('span', { class: 'btn btn--ghost btn--sm', text: agent.rate_usdc ? `desde ${formatUsdc(agent.rate_usdc)}` : 'Tarifa a convenir' })
         )
@@ -1058,12 +1088,17 @@
       el('div', { class: 'profile__grid' },
         el('section', { class: 'card' },
           el('div', { class: 'card__head' }, el('h2', { text: 'Sobre este agente' })),
-          el('p', { class: 'profile__bio', text: agent.bio || 'Todavía no ha escrito su descripción. Puedes preguntarle directamente.' }),
+          el('p', {
+            class: 'profile__bio',
+            text: agent.bio || 'Todavía no ha escrito su descripción. Puedes preguntarle directamente.',
+            dataset: agent.bio ? undefined : { i18n: '1' }
+          }),
           el('div', { class: 'profile__tags' }, specialtyList(agent.especialidades))
         ),
         el('section', { class: 'card' },
           el('div', { class: 'card__head' }, el('h2', { text: 'Datos' })),
           el('div', { class: 'profile__stats' },
+            profileStat('Tipo', isHuman(agent.kind) ? 'Humano' : 'Agente de IA'),
             profileStat('Trabajos', String(agent.jobs_done || 0)),
             profileStat('Reputación', String(agent.reputation || 0)),
             profileStat('Ganado', formatUsdc(agent.ganado_usdc || 0)),
@@ -1229,7 +1264,11 @@
             thread.job_id ? el('span', { class: 'tag', text: 'trabajo' }) : null
           ),
           el('span', { class: 'thread-item__meta', text: `${thread.agent_name || thread.agent_id} · ${formatDate(thread.last_ts || thread.updated_at)}` }),
-          el('span', { class: 'thread-item__preview', text: thread.last_body || 'Sin mensajes' })
+          el('span', {
+            class: 'thread-item__preview',
+            text: thread.last_body || 'Sin mensajes',
+            dataset: thread.last_body ? undefined : { i18n: '1' }
+          })
         ),
         el('span', { class: 'thread-item__side' }, unread ? el('span', { class: 'unread', text: String(unread) }) : null)
       ));
@@ -1397,7 +1436,8 @@
         metaItem('Actualizado', formatDate(job.updated_at)),
         metaItem('Plazo', job.deadline ? formatDate(job.deadline) : 'Sin plazo'),
         metaItem('Agente', job.agent_id || 'Sin asignar', true),
-        metaItem('Especialidades', specialtyList(job.especialidades))
+        metaItem('Especialidades', specialtyList(job.especialidades)),
+        metaItem('Proveedor', providerLabel(job.provider_kind))
       ),
       el('details', { class: 'spec' }, el('summary', { text: 'Ver encargo completo' }), el('pre', { text: job.spec || '—' }))
     );
@@ -1566,7 +1606,7 @@
         break;
       case 'funded':
         row.append(accept(), refund());
-        note.textContent = 'El agente debe tener al menos una de las especialidades pedidas.';
+        note.textContent = 'El agente debe tener al menos una de las especialidades pedidas' + (job.provider_kind === 'human' ? ' y ser humano.' : (job.provider_kind === 'agent' ? ' y ser un agente de IA.' : '.'));
         break;
       case 'accepted':
         card.append(deliverForm(job, encodedId));
@@ -1896,7 +1936,7 @@
         return;
       }
 
-      const payload = { title, spec, specialties, amount_usdc: amount };
+      const payload = { title, spec, specialties, amount_usdc: amount, provider_kind: UI.jobProvider.value || 'any' };
       if (deadline !== null) payload.deadline_hours = deadline;
 
       setBusy(UI.jobSubmit, true, 'Publicando…');
@@ -1960,7 +2000,7 @@
         return;
       }
 
-      const payload = { name, specialties };
+      const payload = { name, specialties, kind: UI.agentKind.value || 'agent' };
       const wallet = UI.agentWallet.value.trim();
       if (wallet) payload.wallet = wallet;
       const headline = UI.agentHeadline.value.trim();
@@ -2051,6 +2091,7 @@
     try {
       const agent = await api('/agents/me', { auth: keys.agent });
       UI.profileName.value = agent.name || '';
+      UI.profileKind.value = agent.kind === 'human' ? 'human' : 'agent';
       UI.profileHeadline.value = agent.headline || '';
       UI.profileBio.value = agent.bio || '';
       UI.profileRate.value = agent.rate_usdc ? String(agent.rate_usdc) : '';
@@ -2105,6 +2146,7 @@
         const me = await api('/agents/me', { auth: keys.agent });
         const payload = {
           name,
+          kind: UI.profileKind.value || 'agent',
           headline: UI.profileHeadline.value.trim(),
           bio: UI.profileBio.value.trim(),
           specialties,
@@ -2249,13 +2291,26 @@
           el('span', { class: 'agent-avatar', 'aria-hidden': 'true', text: initials(agent.name) }),
           el('span', { class: 'search-item__main' },
             el('span', { class: 'search-item__title', text: agent.name || 'Agente' }),
-            el('span', { class: 'search-item__meta', text: agent.headline || (agent.especialidades || []).join(' · ') })
+            el('span', { class: 'search-item__meta', text: `${isHuman(agent.kind) ? 'Humano' : 'Agente de IA'} · ${agent.headline || (agent.especialidades || []).join(' · ')}` })
           ),
           el('span', { class: 'search-item__side', text: agent.rate_usdc ? `$${agent.rate_usdc}` : '' })
         ));
       }
       UI.searchResults.append(group);
     }
+
+    UI.searchResults.append(el('a', {
+      class: 'search-all',
+      href: '#/agents',
+      text: 'Ver todos los agentes →',
+      on: { click: (event) => { event.preventDefault(); closeSearch(); window.location.hash = '#/agents'; } }
+    }));
+    UI.searchResults.append(el('a', {
+      class: 'search-all',
+      href: '#/market',
+      text: 'Ver todos los trabajos →',
+      on: { click: (event) => { event.preventDefault(); closeSearch(); window.location.hash = '#/market'; } }
+    }));
   }
 
   /* ---------------------------------------------------------------- cadena */

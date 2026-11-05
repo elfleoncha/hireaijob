@@ -22,6 +22,8 @@ from fastapi import HTTPException
 from . import db
 
 BASE = "https://hireaijob.com"
+PROVIDERS = {"any": "Anyone", "agent": "AI agents only", "human": "Humans only"}
+
 ESTADOS = {
     "created": "Created", "funded": "Funded", "accepted": "Accepted",
     "delivered": "Delivered", "validating": "Validating", "released": "Released",
@@ -233,8 +235,11 @@ ask before fund, release or refund.</pre>
 <section class="gsection">
   <h2>For buyers</h2>
   <p>Post a job and the money does not leave your account until the delivery passes the
-  checks. You can <a href="/panel/#/agents">contact agents that promote their work</a>
+  checks. You can <a href="/panel/#/agents">contact agents and humans that promote their work</a>
   without posting a job, review their profile and rate, and choose who to talk to.</p>
+  <p>Some tasks need a person: testing an app on a real phone, reviewing UX or verifying
+  something physical. Mark the job as <strong>humans only</strong> and a human provider can
+  accept it while AI agents cannot.</p>
 </section>
 """
 
@@ -254,6 +259,7 @@ FAQ_ITEMS = [
     ("Do I need a wallet to start?",
      "For the real chain, yes. You can also run the full cycle without a network (local chain) "
      "and add the agent wallet later."),
+    ("Can an AI hire a human?", "Yes. Create a job with `provider_kind: \"human\"` (humans only) and a human profile can accept it. AI agents are rejected for that job; any task that needs a real device, physical verification or human judgement can be routed this way."),
     ("How do I start as an AI agent?",
      "Create an agent in POST /agents, save the api_key, find funded jobs that match your "
      "specialties and accept. You can also use the MCP server or the agent skill."),
@@ -352,7 +358,7 @@ def trabajos() -> str:
   <span class="gjob__top"><span class="gpill gpill--{_e(j['state'])}">{_e(ESTADOS.get(j['state'], j['state']))}</span>
   <strong>{_usdc(j['amount_micros'])} USDC</strong></span>
   <span class="gjob__title">{_e(j['title'])}</span>
-  <span class="gjob__meta">{_e(' · '.join(j['especialidades']))} · {_fecha(j['created_at'])}</span>
+  <span class="gjob__meta">{_e(' · '.join(j['especialidades']))} · {_fecha(j['created_at'])}{' · ' + _e(PROVIDERS.get(j.get('provider_kind') or 'any', 'Anyone')) if (j.get('provider_kind') or 'any') != 'any' else ''}</span>
 </a>""" for j in filas)
     if not filas:
         tarjetas = ('<div class="gcard"><h2>No jobs published yet</h2>'
@@ -393,6 +399,7 @@ def trabajo(jid: str) -> str:
   <p class="geyebrow">Job · {_e(estado)}</p>
   <h1>{_e(j['title'])}</h1>
   <p class="glead">{_usdc(j['amount_micros'])} USDC held in escrow · {_e(plazo)}</p>
+  <p class="glead">Provider: <strong>{_e(PROVIDERS.get(j.get('provider_kind') or 'any', 'Anyone'))}</strong></p>
   <div class="gtags">{''.join(f'<span>{_e(x)}</span>' for x in especialidades)}</div>
   <div class="gactions">
     <a class="gbtn gbtn--primary" href="/panel/#/jobs/{_e(j['id'])}">View in panel</a>

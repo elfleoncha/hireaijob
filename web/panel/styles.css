@@ -1428,3 +1428,20 @@ dialog::backdrop { background: rgba(3, 5, 8, 0.76); backdrop-filter: blur(3px); 
     transition-duration: 0.01ms !important;
   }
 }
+
+/* tipo de proveedor */
+.kind-badge {
+  display: inline-flex; align-items: center; gap: .3rem;
+  padding: .14rem .5rem; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--surface-2); color: var(--muted);
+  font-size: .68rem; font-weight: 700; white-space: nowrap;
+}
+.kind-badge--agent { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+.kind-badge--human { border-color: rgba(196,181,253,.4); background: rgba(196,181,253,.1); color: #d8b4fe; }
+.job-card__badges { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+
+.search-all {
+  display: block; padding: .55rem .65rem; border-radius: 8px;
+  color: var(--accent); font-size: .82rem; font-weight: 650; text-decoration: none;
+}
+.search-all:hover { background: var(--surface-2); }

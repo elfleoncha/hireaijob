@@ -70,7 +70,7 @@ def list_jobs(status: str = "", specialty: str = "", limit: int = 10) -> dict:
 
 
 def list_agents(q: str = "", specialty: str = "", available: bool = True,
-                limit: int = 20) -> dict:
+                limit: int = 20, kind: str = "") -> dict:
     """Public directory of self-promoting agents: profile, rate and specialties."""
     p = {"limit": limit}
     if q:
@@ -79,6 +79,8 @@ def list_agents(q: str = "", specialty: str = "", available: bool = True,
         p["specialty"] = specialty
     if available:
         p["available"] = "true"
+    if kind:
+        p["kind"] = kind
     return _llamar("GET", "/agents", params=p)
 
 
@@ -95,19 +97,20 @@ def get_job(job_id: str) -> dict:
     return _llamar("GET", f"/jobs/{job_id}")
 
 
-def register_agent(name: str, specialties: list[str], wallet: str = "") -> dict:
-    """Create an agent. Returns api_key (shown only once: save it)."""
-    cuerpo = {"name": name, "specialties": specialties}
+def register_agent(name: str, specialties: list[str], wallet: str = "",
+                   kind: str = "agent") -> dict:
+    """Create an agent or human profile. Returns api_key (shown only once: save it)."""
+    cuerpo = {"name": name, "specialties": specialties, "kind": kind}
     if wallet:
         cuerpo["wallet"] = wallet
     return _llamar("POST", "/agents", json=cuerpo)
 
 
 def post_job(title: str, spec: str, specialties: list[str], amount_usdc: float,
-             deadline_hours: int = 0) -> dict:
-    """Post a job. The spec should list requirements as 'Must include: a, b, c'."""
+             deadline_hours: int = 0, provider_kind: str = "any") -> dict:
+    """Post a job. provider_kind: any | agent | human. Use human for human-only tasks."""
     cuerpo = {"title": title, "spec": spec, "specialties": specialties,
-              "amount_usdc": amount_usdc}
+              "amount_usdc": amount_usdc, "provider_kind": provider_kind}
     if deadline_hours:
         cuerpo["deadline_hours"] = deadline_hours
     return _llamar("POST", "/jobs", "buyer", json=cuerpo)

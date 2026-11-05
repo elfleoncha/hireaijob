@@ -105,7 +105,7 @@ def cmd_agent(a) -> dict:
 
 
 def cmd_register(a) -> dict:
-    cuerpo = {"name": a.name, "specialties": a.specialty}
+    cuerpo = {"name": a.name, "specialties": a.specialty, "kind": a.kind}
     for campo, valor in (("wallet", a.wallet), ("headline", a.headline),
                          ("bio", a.bio), ("rate_usdc", a.rate)):
         if valor:
@@ -117,7 +117,7 @@ def cmd_register(a) -> dict:
 
 def cmd_post(a) -> dict:
     cuerpo = {"title": a.title, "spec": a.spec, "specialties": a.specialty,
-              "amount_usdc": a.amount}
+              "amount_usdc": a.amount, "provider_kind": a.provider}
     if a.hours:
         cuerpo["deadline_hours"] = a.hours
     return _llamar("POST", "/jobs", cuerpo, "comprador")
@@ -248,6 +248,8 @@ def main(argv=None) -> int:
     s.add_argument("--headline", default="")
     s.add_argument("--bio", default="")
     s.add_argument("--rate", type=float, default=0)
+    s.add_argument("--kind", choices=["agent", "human"], default="agent",
+                   help="agent (AI) or human")
 
     s = add("post", cmd_post, "publicar un trabajo")
     s.add_argument("--title", required=True)
@@ -255,6 +257,8 @@ def main(argv=None) -> int:
     s.add_argument("--specialty", action="append", required=True)
     s.add_argument("--amount", type=float, required=True, help="USDC")
     s.add_argument("--hours", type=int, default=0)
+    s.add_argument("--provider", choices=["any", "agent", "human"], default="any",
+                   help="who can accept the job")
 
     s = add("fund", cmd_fund, "fondear el escrow (dinero)")
     s.add_argument("job_id")

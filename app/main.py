@@ -205,6 +205,7 @@ class Agente(BaseModel):
     name: str = Field(min_length=2, max_length=60)
     specialties: list[str] = Field(min_length=1, max_length=12)
     wallet: str | None = None
+    kind: Literal["agent", "human"] = "agent"
     headline: str | None = Field(default=None, max_length=140)
     bio: str | None = Field(default=None, max_length=2000)
     rate_usdc: float | None = Field(default=None, ge=0, le=100000)
@@ -239,6 +240,7 @@ class Trabajo(BaseModel):
     specialties: list[str] = Field(min_length=1, max_length=12)
     amount_usdc: float = Field(gt=0, le=100000)
     deadline_hours: int | None = Field(default=None, ge=1, le=24 * 60)
+    provider_kind: Literal["any", "agent", "human"] = "any"
 
 
 class Entrega(BaseModel):
@@ -394,10 +396,10 @@ def crear_agente(a: Agente):
     with db.conn() as c:
         c.execute(
             "INSERT INTO agents (id,name,specialties,key_hash,key_prefix,wallet,created_at,"
-            "headline,bio,rate_micros,available,profile_updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "headline,bio,rate_micros,available,profile_updated_at,kind) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (aid, a.name, json.dumps(a.specialties), kh, pref, a.wallet, now,
-             a.headline, a.bio, rate, 1, now),
+             a.headline, a.bio, rate, 1, now, a.kind),
         )
     db.evento(None, "agent:signup", f"{aid} {a.name}")
     # la clave se enseña UNA vez
@@ -409,7 +411,8 @@ def listar_agentes(q: str | None = None, especialidad: str | None = None,
                    disponible: bool | None = None, orden: str = "reputacion",
                    limite: int = 50, offset: int = 0,
                    specialty: str | None = None, available: bool | None = None,
-                   sort: str | None = None, limit: int | None = None):
+                   sort: str | None = None, limit: int | None = None,
+                   kind: str | None = None):
     # English aliases (preferred); Spanish names kept for backwards compatibility.
     especialidad = especialidad or specialty
     disponible = disponible if disponible is not None else available
@@ -428,6 +431,9 @@ def listar_agentes(q: str | None = None, especialidad: str | None = None,
     if disponible is not None:
         cond.append("available=?")
         args.append(1 if disponible else 0)
+    if kind in ("agent", "human"):
+        cond.append("kind=?")
+        args.append(kind)
     donde = (" WHERE " + " AND ".join(cond)) if cond else ""
     ordenes = {
         "reputacion": "reputation DESC, jobs_done DESC, created_at DESC",
@@ -440,7 +446,7 @@ def listar_agentes(q: str | None = None, especialidad: str | None = None,
         total = c.execute(f"SELECT COUNT(*) n FROM agents{donde}", args).fetchone()["n"]
         filas = [dict(r) for r in c.execute(
             "SELECT id,name,specialties,wallet,stake_micros,reputation,jobs_done,created_at,"
-            "headline,bio,rate_micros,available,profile_updated_at "
+            "headline,bio,rate_micros,available,profile_updated_at,kind "
             f"FROM agents{donde} ORDER BY {orden_sql} LIMIT ? OFFSET ?",
             args + [max(1, min(limite, 100)), max(0, offset)])]
     for f in filas:
@@ -461,7 +467,7 @@ def ver_agente(aid: str):
     with db.conn() as c:
         row = c.execute(
             "SELECT id,name,specialties,wallet,stake_micros,reputation,jobs_done,created_at,"
-            "headline,bio,rate_micros,available,profile_updated_at "
+            "headline,bio,rate_micros,available,profile_updated_at,kind "
             "FROM agents WHERE id=?", (aid,)).fetchone()
     if not row:
         raise HTTPException(404, "agent not found")
@@ -482,6 +488,8 @@ def editar_agente(aid: str, p: Perfil, agente: dict = Depends(agente_actual)):
     campos, valores = [], []
     if p.name is not None:
         campos.append("name=?"); valores.append(p.name)
+    if p.kind is not None:
+        campos.append("kind=?"); valores.append(p.kind)
     if p.headline is not None:
         campos.append("headline=?"); valores.append(p.headline)
     if p.bio is not None:
@@ -647,10 +655,11 @@ def crear_trabajo(t: Trabajo, _: str = Depends(comprador_actual)):
     now = int(time.time())
     with db.conn() as c:
         c.execute(
-            "INSERT INTO jobs (id,title,spec,specialties,amount_micros,state,buyer_id,"
-            "created_at,updated_at,deadline) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (jid, t.title, t.spec, json.dumps(t.specialties), micros(t.amount_usdc), "created",
-             "buyer", now, now, now + t.deadline_hours * 3600 if t.deadline_hours else None),
+            "INSERT INTO jobs (id,title,spec,specialties,amount_micros,provider_kind,state,"
+            "buyer_id,created_at,updated_at,deadline) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (jid, t.title, t.spec, json.dumps(t.specialties), micros(t.amount_usdc),
+             t.provider_kind, "created", "buyer", now, now,
+             now + t.deadline_hours * 3600 if t.deadline_hours else None),
         )
     db.evento(jid, "created", t.title)
     return {"id": jid, "amount_usdc": t.amount_usdc, "estado": "created"}
@@ -689,7 +698,7 @@ def listar(estado: str | None = None, especialidad: str | None = None,
     especialidad = especialidad or specialty
     limite = limit or limite
     q = (q or "").strip()[:120]
-    consulta = "SELECT id,title,specialties,amount_micros,state,created_at FROM jobs"
+    consulta = "SELECT id,title,specialties,amount_micros,provider_kind,state,created_at FROM jobs"
     cond, args = [], []
     if estado:
         cond.append("state=?"); args.append(estado)
@@ -718,6 +727,12 @@ def aceptar(jid: str, agente: dict = Depends(agente_actual)):
         pedidas = json.loads(job["specialties"])
         if not set(map(str.lower, especialidades)) & set(map(str.lower, pedidas)):
             raise HTTPException(403, "the agent does not have the requested specialty")
+        requerido = job.get("provider_kind") or "any"
+        ofrecido = agente.get("kind") or "agent"
+        if requerido != "any" and requerido != ofrecido:
+            if requerido == "human":
+                raise HTTPException(403, "this job is for human providers only")
+            raise HTTPException(403, "this job is for AI agents only")
         _cambiar(c, jid, "accepted", esperado="funded", agent_id=agente["id"])
     db.evento(jid, "accepted", agente["id"])
     return {"id": jid, "estado": "accepted", "agente": agente["id"]}

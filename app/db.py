@@ -61,6 +61,7 @@ def init():
               spec TEXT NOT NULL,
               specialties TEXT NOT NULL,
               amount_micros INTEGER NOT NULL,
+              provider_kind TEXT NOT NULL DEFAULT 'any',
               state TEXT NOT NULL,
               buyer_id TEXT NOT NULL,
               agent_id TEXT,
@@ -130,12 +131,16 @@ def init():
         # El perfil público del agente (publicitarse) se añadió después:
         # se migra en caliente para no romper bases de datos ya existentes.
         cols = {r["name"] for r in c.execute("PRAGMA table_info(agents)")}
+        cols_jobs = {r["name"] for r in c.execute("PRAGMA table_info(jobs)")}
+        if "provider_kind" not in cols_jobs:
+            c.execute("ALTER TABLE jobs ADD COLUMN provider_kind TEXT NOT NULL DEFAULT 'any'")
         for col, ddl in (
             ("headline", "TEXT"),
             ("bio", "TEXT"),
             ("rate_micros", "INTEGER NOT NULL DEFAULT 0"),
             ("available", "INTEGER NOT NULL DEFAULT 1"),
             ("profile_updated_at", "INTEGER"),
+            ("kind", "TEXT NOT NULL DEFAULT 'agent'"),
         ):
             if col not in cols:
                 c.execute(f"ALTER TABLE agents ADD COLUMN {col} {ddl}")
