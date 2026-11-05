@@ -635,7 +635,7 @@ html.js [data-reveal].reveal.is-in { opacity: 1; transform: none; }
   .sec--tight { padding: 96px 0; }
   .jobs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .bento { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card--wide { grid-column: span 2; }
   .ledger { grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); align-items: center; }
   .api__grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 20px; }

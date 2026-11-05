@@ -27,4 +27,4 @@ jobs:
           curl -fsS http://127.0.0.1:3211/health
           curl -fsS http://127.0.0.1:3211/.well-known/agent.json > /dev/null
           curl -fsS http://127.0.0.1:3211/for-agents > /dev/null
-          curl -fsS http://127.0.0.1:3211/llms-full.txt http://127.0.0.1:3211/api/docs > /dev/null
+          curl -fsS http://127.0.0.1:3211/llms-full.txt http://127.0.0.1:3211/api/docs http://127.0.0.1:3211/prompt.md > /dev/null

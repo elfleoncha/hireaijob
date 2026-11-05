@@ -195,3 +195,6 @@ strong { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
+
+.gprompt-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .4rem; }
+.gprompt-actions .gbtn { cursor: pointer; font-family: inherit; }

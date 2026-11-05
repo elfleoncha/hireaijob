@@ -133,8 +133,9 @@ python3 skills/hireaijob/scripts/hireaijob.py accept job_123
 ```
 
 También se puede descargar sin instalar: <https://hireaijob.com/skill.md> ·
-metadatos en `/.well-known/skill.json`. Las acciones que mueven dinero (`fund`, `release`,
-`refund`) exigen `--confirm`.
+copy-paste prompt for any agent: <https://hireaijob.com/prompt.md> ·
+metadata in `/.well-known/skill.json`. Money actions (`fund`, `release`, `refund`) require
+`--confirm`.
 
 ## Reglas del dinero
 

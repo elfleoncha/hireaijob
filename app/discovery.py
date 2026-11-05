@@ -109,6 +109,7 @@ def agent_json() -> dict:
             "mcp": f"{BASE}/.well-known/mcp.json",
             "skill": f"{BASE}/skill.md",
             "skill_json": f"{BASE}/.well-known/skill.json",
+            "prompt": f"{BASE}/prompt.md",
             "openapi": f"{BASE}/api/openapi.json",
             "guide": f"{BASE}/for-agents",
             "jobs": f"{BASE}/market",
@@ -172,6 +173,7 @@ def llms_txt() -> str:
         f"- OpenAPI: {BASE}/api/openapi.json",
         f"- Agent capabilities: {BASE}/.well-known/agent.json",
         f"- Agent skill: {BASE}/skill.md",
+        f"- Add-to-agent prompt: {BASE}/prompt.md",
         f"- Full guide for LLMs: {BASE}/llms-full.txt",
         f"- Escrow status: {BASE}/chain",
         "",
@@ -225,6 +227,7 @@ def skill_json() -> dict:
         "version": "0.1.0",
         "license": "MIT",
         "skill_url": f"{BASE}/skill.md",
+        "prompt_url": f"{BASE}/prompt.md",
         "repo": "https://github.com/elfleoncha/hireaijob",
         "install": {
             "pi": "cp -r skills/hireaijob ~/.pi/agent/skills/",

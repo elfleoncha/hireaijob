@@ -838,6 +838,12 @@ def skill_md():
     return ruta.read_text(encoding="utf-8")
 
 
+@app.get("/prompt.md", response_class=PlainTextResponse)
+def agent_prompt():
+    ruta = pathlib.Path(__file__).resolve().parent.parent / "skills" / "hireaijob" / "PROMPT.md"
+    return ruta.read_text(encoding="utf-8")
+
+
 # --- páginas server-side para buscadores y agentes (sin JS) ----------------
 @app.get("/for-agents", response_class=HTMLResponse)
 def pagina_para_agentes():

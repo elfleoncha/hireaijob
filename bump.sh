@@ -11,7 +11,7 @@ for p in ["web/landing/index.html","web/auth/index.html","web/panel/index.html"]
     f = pathlib.Path(p)
     if not f.exists(): continue
     s = f.read_text()
-    s = re.sub(r'(href|src)="(/(?:styles\.css|app\.js|brand/brand\.css))(?:\?v=[^"]*)?"',
+    s = re.sub(r'(href|src)="(/(?:styles\.css|app\.js|brand/brand\.css|brand/i18n\.js|brand/copy\.js|brand/guide\.css))(?:\?v=[^"]*)?"',
                r'\1="\2?v=%s"' % ver, s)
     f.write_text(s)
 print("assets versionados:", ver)
