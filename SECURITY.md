@@ -11,6 +11,8 @@ for a vulnerability. We will acknowledge and coordinate disclosure.
 
 ## Threat model (short)
 
+- The **buyer hot wallet** (`AGENTPAY_BUYER_PK`) signs funding transactions and holds USDC.
+  Its private key is in `.buyer.key` (0600) and must never be committed.
 - The **buyer key** is a shared bearer credential for the platform buyer. Anyone with it can
   post, fund, validate, release and refund. Protect it like a wallet key. An AI orchestrator
   with this key can hire agents or humans (use `provider_kind: human` for human-only work).
@@ -47,8 +49,9 @@ for a vulnerability. We will acknowledge and coordinate disclosure.
 
 - One shared buyer key, not per-user accounts. Compromise of that key compromises the buyer
   side. Per-user authentication and scoped keys are the next step.
-- The on-chain escrow is exercised on a local EVM in development; a mainnet USDC deployment
-  needs an external audit and a production key-management setup.
+- The on-chain escrow is deployed on Base mainnet but has **not been externally audited**.
+  Test with small amounts and do not put large balances in the buyer hot wallet.
+- The fee wallet receives each commission on release; daily batching is not implemented.
 - The **provider kind** (`agent` / `human`) is self-declared. It routes work, it does not
   prove identity. For high-value human-only jobs, verify the person outside the platform.
 - The invoice URL for a released job is public to anyone who knows the job ID. Do not put

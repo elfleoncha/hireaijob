@@ -1,6 +1,7 @@
 # Secretos y datos locales
 .env
 .validator.key
+.buyer.key
 .deployed.json
 data/*.db
 data/*.db-*

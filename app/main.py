@@ -673,18 +673,18 @@ def fondear(jid: str, _: str = Depends(comprador_actual)):
         job = _job(c, jid)
         if job["state"] != "created":
             raise HTTPException(409, f"cannot fund in status {job['state']}")
+        extra = {}
+        if chain.activo():
+            try:
+                extra["onchain"] = chain.fondear(jid, job["amount_micros"] / 1e6)
+                db.evento(jid, "onchain:fund", json.dumps(extra["onchain"])[:400], c=c)
+            except Exception as e:
+                # Sin depósito on-chain no se marca como fondado: se revierte la transacción.
+                db.evento(jid, "onchain:error", repr(e)[:300], c=c)
+                raise HTTPException(502, f"on-chain funding failed: {repr(e)[:180]}") from e
         _cambiar(c, jid, "funded", esperado="created")
         db.post(jid, [("buyer", "buyer", -job["amount_micros"], "deposit"),
                       ("escrow", jid, job["amount_micros"], "held in escrow")], c=c)
-    extra = {}
-    if chain.activo():
-        try:
-            extra["onchain"] = chain.fondear(jid, job["amount_micros"] / 1e6)
-            db.evento(jid, "onchain:fund", json.dumps(extra["onchain"])[:400])
-        except Exception as e:
-            # el apunte contable ya existe: se marca para reconciliar a mano
-            db.evento(jid, "onchain:error", repr(e)[:300])
-            extra["error_onchain"] = repr(e)[:200]
     return {"id": jid, "estado": "funded", "escrow_usdc": db.saldo("escrow", jid) / 1e6, **extra}
 
 
@@ -733,9 +733,20 @@ def aceptar(jid: str, agente: dict = Depends(agente_actual)):
             if requerido == "human":
                 raise HTTPException(403, "this job is for human providers only")
             raise HTTPException(403, "this job is for AI agents only")
+        if chain.activo() and chain.requiere_wallet() and not agente.get("wallet"):
+            raise HTTPException(400, "add a Base wallet to your profile before accepting jobs")
         _cambiar(c, jid, "accepted", esperado="funded", agent_id=agente["id"])
+        extra = {}
+        if chain.activo():
+            try:
+                # El contrato necesita la wallet del agente para poder pagarle.
+                extra["onchain"] = chain.asignar_agente(jid, agente.get("wallet"))
+                db.evento(jid, "onchain:agent", json.dumps(extra["onchain"])[:400], c=c)
+            except Exception as e:
+                db.evento(jid, "onchain:error", repr(e)[:300], c=c)
+                raise HTTPException(502, f"on-chain assignment failed: {repr(e)[:180]}") from e
     db.evento(jid, "accepted", agente["id"])
-    return {"id": jid, "estado": "accepted", "agente": agente["id"]}
+    return {"id": jid, "estado": "accepted", "agente": agente["id"], **extra}
 
 
 @app.post("/jobs/{jid}/deliver")
@@ -796,17 +807,17 @@ def liberar(jid: str, _: str = Depends(comprador_actual)):
                       ("fees", "platform", fee, "fee")], c=c)
         c.execute("UPDATE agents SET jobs_done=jobs_done+1, reputation=reputation+1 WHERE id=?",
                   (job["agent_id"],))
+        salida = {"id": jid, "estado": "released", "neto_usdc": neto / 1e6,
+                  "fee_usdc": fee / 1e6, "liquidacion": "pending signature (USDC on Base)"}
+        if chain.activo():
+            try:
+                salida["onchain"] = chain.liberar(jid)
+                salida["liquidacion"] = "settled on-chain"
+                db.evento(jid, "onchain:release", json.dumps(salida["onchain"])[:400], c=c)
+            except Exception as e:
+                db.evento(jid, "onchain:error", repr(e)[:300], c=c)
+                raise HTTPException(502, f"on-chain release failed: {repr(e)[:180]}") from e
     db.evento(jid, "released", f"neto={neto} fee={fee}")
-    salida = {"id": jid, "estado": "released", "neto_usdc": neto / 1e6,
-              "fee_usdc": fee / 1e6, "liquidacion": "pending signature (USDC on Base)"}
-    if chain.activo():
-        try:
-            salida["onchain"] = chain.liberar(jid)
-            salida["liquidacion"] = "settled on-chain"
-            db.evento(jid, "onchain:release", json.dumps(salida["onchain"])[:400])
-        except Exception as e:
-            db.evento(jid, "onchain:error", repr(e)[:300])
-            salida["error_onchain"] = repr(e)[:200]
     return salida
 
 
@@ -834,14 +845,15 @@ def reembolsar(jid: str, _: str = Depends(comprador_actual)):
                  esperado=("funded", "accepted", "delivered", "validating", "disputed"))
         db.post(jid, [("escrow", jid, -job["amount_micros"], "refunded"),
                       ("buyer", "buyer", job["amount_micros"], "refund")], c=c)
+        salida = {"id": jid, "estado": "refunded"}
+        if chain.activo():
+            try:
+                salida["onchain"] = chain.reembolsar(jid)
+                db.evento(jid, "onchain:refund", json.dumps(salida["onchain"])[:400], c=c)
+            except Exception as e:
+                db.evento(jid, "onchain:error", repr(e)[:300], c=c)
+                raise HTTPException(502, f"on-chain refund failed: {repr(e)[:180]}") from e
     db.evento(jid, "refunded", "")
-    salida = {"id": jid, "estado": "refunded"}
-    if chain.activo():
-        try:
-            salida["onchain"] = chain.reembolsar(jid)
-        except Exception as e:
-            db.evento(jid, "onchain:error", repr(e)[:300])
-            salida["error_onchain"] = repr(e)[:200]
     return salida
 
 

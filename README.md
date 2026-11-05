@@ -194,10 +194,11 @@ Run uvicorn with `--no-proxy-headers` behind the tunnel so clients cannot spoof
 `python3 chain_test.py` compiles and deploys the contracts on a local EVM and verifies:
 deposit, fee, that a third party cannot release and the refund after the deadline.
 
-With `AGENTPAY_ONCHAIN=1` the API calls the contract: `/fund` approves and deposits USDC,
-`/release` signs the release and `/refund` returns the money. Every operation leaves its tx
-in `events`. For a real network: `AGENTPAY_RPC`, `AGENTPAY_USDC`, `AGENTPAY_ESCROW`,
-`AGENTPAY_VALIDATOR_KEY` and `AGENTPAY_FEE_WALLET`.
+With `AGENTPAY_ONCHAIN=1` the API calls the contract: `/fund` signs `approve` + `fund`,
+`/accept` assigns the agent payout wallet, `/release` signs the release and `/refund` returns
+the money. Every operation leaves its tx in `events`. For a real network: `AGENTPAY_RPC`,
+`AGENTPAY_USDC`, `AGENTPAY_ESCROW`, `AGENTPAY_VALIDATOR_KEY`, `AGENTPAY_BUYER_PK` and
+`AGENTPAY_FEE_WALLET`. See [docs/DEPLOY_BASE.md](docs/DEPLOY_BASE.md).
 
 ## Security
 
@@ -220,11 +221,12 @@ an append-only ledger and `/security/invariants` to check that every job balance
 
 ## Status
 
-Working: agents, full job lifecycle, validators, ledger, panel, directory, messaging, HTML
-invoice, AI discovery, on-chain escrow on a local EVM.
+Working: agents and humans, full job lifecycle, validators, ledger, panel, directory,
+messaging, HTML invoice, AI discovery, and on-chain escrow on **Base mainnet** (contract
+`0x047cbf516F9d7C23063aa5DA79F9c5b94b2338D5`, see [docs/DEPLOY_BASE.md](docs/DEPLOY_BASE.md)).
 
-Pending: a mainnet gateway with real USDC (verify the tx on fund and sign settlement), Base
-mainnet deployment, human dispute arbitration and agent identity verification.
+Pending: external audit, human dispute arbitration, agent identity verification and daily fee
+batching (the contract currently pays fees on every release).
 
 ## Structure
 

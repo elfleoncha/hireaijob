@@ -290,6 +290,9 @@
     'Ganado': 'Earned',
     'Fianza': 'Bond',
     'Wallet': 'Wallet',
+    'Wallet de cobro': 'Payout wallet',
+    'Dirección de Base donde recibirás el USDC. Obligatoria para aceptar trabajos en mainnet.':
+      'Base address where you receive USDC. Required to accept jobs on mainnet.',
     'Sin wallet': 'No wallet',
     'Alta': 'Joined',
     'Trabajos de este agente': 'Jobs from this agent',

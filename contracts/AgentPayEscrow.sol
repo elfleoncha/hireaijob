@@ -38,7 +38,8 @@ contract AgentPayEscrow {
 
     mapping(bytes32 => Job) public jobs;
 
-    event Funded(bytes32 indexed id, address buyer, address agent, uint256 amount);
+    event Funded(bytes32 indexed id, address buyer, uint256 amount);
+    event AgentAssigned(bytes32 indexed id, address agent);
     event Released(bytes32 indexed id, uint256 toAgent, uint256 fee);
     event Refunded(bytes32 indexed id, address buyer);
     event Disputed(bytes32 indexed id, address buyer);
@@ -60,15 +61,23 @@ contract AgentPayEscrow {
         feeWallet = _feeWallet;
     }
 
-    /// El comprador abre el trabajo y deja el dinero retenido.
-    function fund(bytes32 id, address agent, uint256 amount, uint64 deadline)
-        external
-    {
-        require(jobs[id].state == State.None, "existe");
-        require(agent != address(0) && amount > 0, "params");
+    /// El comprador abre el trabajo y deja el dinero retenido. El agente se
+    /// asigna cuando acepta (el validador firma la asignación).
+    function fund(bytes32 id, uint256 amount, uint64 deadline) external {
+        require(jobs[id].state == State.None, "exists");
+        require(amount > 0, "params");
         require(usdc.transferFrom(msg.sender, address(this), amount), "transfer");
-        jobs[id] = Job(msg.sender, agent, amount, deadline, State.Funded);
-        emit Funded(id, msg.sender, agent, amount);
+        jobs[id] = Job(msg.sender, address(0), amount, deadline, State.Funded);
+        emit Funded(id, msg.sender, amount);
+    }
+
+    /// La plataforma asigna el agente/humano que ha aceptado el trabajo.
+    function assignAgent(bytes32 id, address agent) external onlyValidator {
+        Job storage j = jobs[id];
+        if (j.state != State.Funded || j.agent != address(0)) revert BadState();
+        require(agent != address(0), "agent");
+        j.agent = agent;
+        emit AgentAssigned(id, agent);
     }
 
     function comision(uint256 amount) public view returns (uint256) {
@@ -83,6 +92,7 @@ contract AgentPayEscrow {
     function release(bytes32 id) external onlyValidator {
         Job storage j = jobs[id];
         if (j.state != State.Funded && j.state != State.Disputed) revert BadState();
+        require(j.agent != address(0), "no agent");
         uint256 fee = comision(j.amount);
         j.state = State.Released;
         require(usdc.transfer(j.agent, j.amount - fee), "transfer");

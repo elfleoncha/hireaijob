@@ -69,9 +69,12 @@ def main():
 
     # 1) fondear
     usdc.functions.approve(esc.address, 40_000_000).transact({"from": buyer})
-    esc.functions.fund(job, agent, 40_000_000, plazo).transact({"from": buyer})
+    esc.functions.fund(job, 40_000_000, plazo).transact({"from": buyer})
     print("en escrow:", usdc_de(esc.address), "USDC | comprador:", usdc_de(buyer))
     assert usdc_de(esc.address) == 40.0
+
+    # 1b) el validador asigna el agente cuando acepta
+    esc.functions.assignAgent(job, agent).transact({"from": validator})
 
     # 2) un curioso no puede liberar
     try:
@@ -91,7 +94,8 @@ def main():
     # 4) reembolso tras el plazo
     job2 = b"\x22" * 32
     usdc.functions.approve(esc.address, 20_000_000).transact({"from": buyer})
-    esc.functions.fund(job2, agent, 20_000_000, plazo).transact({"from": buyer})
+    esc.functions.fund(job2, 20_000_000, plazo).transact({"from": buyer})
+    esc.functions.assignAgent(job2, agent).transact({"from": validator})
     antes = usdc_de(buyer)
     try:
         esc.functions.refund(job2).transact({"from": buyer})
