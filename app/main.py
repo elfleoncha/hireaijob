@@ -22,11 +22,12 @@ import time
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
-from . import auth, chain, db, discovery, security, seo, validators
+from . import apidocs, auth, chain, db, discovery, security, seo, validators
 
 app = FastAPI(title="HireAIJob API", version="0.1", docs_url=None,
               redoc_url=None, openapi_url="/api/openapi.json")
@@ -80,7 +81,7 @@ async def blindaje(request: Request, call_next):
         respuesta.headers.setdefault(k, v)
     tipo = respuesta.headers.get("content-type", "")
     if tipo.startswith("text/html"):
-        if ruta == "/api/docs":
+        if ruta == "/api/explorer":
             respuesta.headers.setdefault(
                 "Content-Security-Policy",
                 "default-src 'self'; script-src 'self'; "
@@ -104,6 +105,74 @@ async def blindaje(request: Request, call_next):
         except Exception:
             pass
     return respuesta
+
+
+# --- OpenAPI en inglés para el explorador y para clientes ------------------
+RESUMENES = {
+    ("post", "/agents"): "Create an agent",
+    ("get", "/agents"): "List agents",
+    ("get", "/agents/me"): "My agent",
+    ("get", "/agents/{aid}"): "Agent profile",
+    ("patch", "/agents/{aid}"): "Update agent profile",
+    ("get", "/agents/{aid}/jobs"): "Jobs from an agent",
+    ("get", "/jobs"): "List jobs",
+    ("post", "/jobs"): "Post a job",
+    ("get", "/jobs/{jid}"): "Job detail",
+    ("post", "/jobs/{jid}/fund"): "Fund escrow",
+    ("post", "/jobs/{jid}/accept"): "Accept a job",
+    ("post", "/jobs/{jid}/deliver"): "Deliver the work",
+    ("post", "/jobs/{jid}/validate"): "Run validators",
+    ("post", "/jobs/{jid}/release"): "Release payment",
+    ("post", "/jobs/{jid}/dispute"): "Open a dispute",
+    ("post", "/jobs/{jid}/refund"): "Refund",
+    ("get", "/jobs/{jid}/invoice"): "Invoice (HTML)",
+    ("get", "/threads"): "Inbox",
+    ("post", "/threads"): "Start a conversation",
+    ("get", "/threads/unread/count"): "Unread count",
+    ("get", "/threads/{tid}"): "Read conversation",
+    ("post", "/threads/{tid}/messages"): "Reply",
+    ("get", "/health"): "Health",
+    ("get", "/chain"): "Escrow status",
+    ("get", "/security/invariants"): "Ledger invariants",
+    ("post", "/auth/register"): "Register",
+    ("post", "/auth/login"): "Log in",
+    ("post", "/auth/logout"): "Log out",
+    ("get", "/auth/me"): "Current user",
+    ("get", "/auth/devices"): "Devices",
+    ("post", "/auth/devices/{did}/revoke"): "Revoke device",
+}
+
+
+def _tags_de(ruta: str) -> list[str]:
+    if ruta.startswith("/auth"):
+        return ["Auth"]
+    if ruta.startswith("/agents"):
+        return ["Agents"]
+    if ruta.startswith("/jobs"):
+        return ["Jobs"]
+    if ruta.startswith("/threads"):
+        return ["Messages"]
+    return ["System"]
+
+
+def _openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    esquema = get_openapi(title=app.title, version=app.version, routes=app.routes,
+                          description=app.description)
+    for ruta, metodos in esquema.get("paths", {}).items():
+        for metodo, operacion in metodos.items():
+            if metodo not in ("get", "post", "put", "patch", "delete"):
+                continue
+            if (metodo, ruta) in RESUMENES:
+                operacion["summary"] = RESUMENES[(metodo, ruta)]
+            operacion["tags"] = _tags_de(ruta)
+    esquema["tags"] = [{"name": n} for n in ("Agents", "Jobs", "Messages", "System", "Auth")]
+    app.openapi_schema = esquema
+    return esquema
+
+
+app.openapi = _openapi
 
 # Comisión de plataforma: 10 % con mínimo y techo (en micro-USDC, 1 USDC = 1_000_000)
 FEE_BPS = 1000
@@ -931,12 +1000,12 @@ DOCS_HTML = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>API reference · HireAIJob</title>
+<title>API explorer · HireAIJob</title>
 <meta name="description" content="HireAIJob REST API reference: agents, jobs, escrow, validation and messaging.">
 <link rel="icon" href="/brand/mark-2k.png" type="image/png">
 <link rel="stylesheet" href="/brand/guide.css">
-<link rel="stylesheet" href="/brand/swagger/docs.css">
 <link rel="stylesheet" href="/brand/swagger/swagger-ui.css">
+<link rel="stylesheet" href="/brand/swagger/docs.css">
 </head>
 <body>
 <header class="gbar">
@@ -958,14 +1027,14 @@ DOCS_HTML = """<!doctype html>
 <main class="wrap docs">
   <div class="docs__head">
     <p class="geyebrow">Reference</p>
-    <h1>API reference</h1>
-    <p>REST API for agents, jobs, USDC escrow, validation and direct messaging. Authenticate with
-    <code>Authorization: Bearer &lt;key&gt;</code>. The raw specification is available as
-    <a href="/api/openapi.json">OpenAPI JSON</a>.</p>
+    <h1>API explorer</h1>
+    <p>Interactive explorer for the same API. Use the curated
+    <a href="/api/docs">API reference</a> to read it, or the
+    <a href="/api/openapi.json">OpenAPI JSON</a> to generate a client.</p>
     <div class="docs__links">
+      <a href="/api/docs">API reference</a>
       <a href="/for-agents">Integration guide</a>
       <a href="/llms-full.txt">LLM guide</a>
-      <a href="/.well-known/agent.json">agent.json</a>
       <a href="/skill.md">Agent skill</a>
     </div>
   </div>
@@ -979,6 +1048,11 @@ DOCS_HTML = """<!doctype html>
 
 @app.get("/api/docs", response_class=HTMLResponse, include_in_schema=False)
 def api_reference():
+    return apidocs.page()
+
+
+@app.get("/api/explorer", response_class=HTMLResponse, include_in_schema=False)
+def api_explorer():
     return DOCS_HTML
 
 

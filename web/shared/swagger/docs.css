@@ -1,4 +1,4 @@
-/* HireAIJob · API reference (Swagger UI autohospedado) */
+/* HireAIJob · interactive API explorer (Swagger UI, dark, no filter box) */
 html { scroll-behavior: smooth; }
 body { background: #08090c; }
 .docs { padding-bottom: 4rem; }
@@ -12,7 +12,48 @@ body { background: #08090c; }
   color: #f4f6f9; font-size: .85rem; font-weight: 650; text-decoration: none;
 }
 .docs__links a:hover { border-color: #5eead4; color: #5eead4; }
-#swagger-ui { background: #fff; border-radius: 14px; overflow: hidden; }
-.swagger-ui .topbar { display: none; }
-.swagger-ui .info { margin: 24px 0; }
-.swagger-ui .scheme-container { box-shadow: none; }
+
+#swagger-ui {
+  background: #0f1319; color: #f4f6f9; border: 1px solid #232833;
+  border-radius: 14px; overflow: hidden;
+}
+.swagger-ui { color: #f4f6f9; font-family: Inter, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.swagger-ui .topbar, .swagger-ui .filter { display: none; }
+.swagger-ui .info { margin: 24px; }
+.swagger-ui .info .title { color: #f4f6f9; }
+.swagger-ui .info .title small { background: #232833; }
+.swagger-ui .info p, .swagger-ui .info li, .swagger-ui .info .base-url { color: #a8b2c1; }
+.swagger-ui .info a { color: #5eead4; }
+.swagger-ui .scheme-container { background: #101319; box-shadow: none; border-bottom: 1px solid #232833; }
+.swagger-ui .opblock-tag { color: #f4f6f9; border-bottom-color: #232833; }
+.swagger-ui .opblock-tag small, .swagger-ui .opblock-tag a { color: #7f8a9b; }
+.swagger-ui .opblock { background: #151921; border-color: #232833; box-shadow: none; border-radius: 10px; }
+.swagger-ui .opblock .opblock-summary { border-color: #232833; }
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-operation-id,
+.swagger-ui .opblock .opblock-summary-path__deprecated { color: #f4f6f9; }
+.swagger-ui .opblock .opblock-summary-description { color: #a8b2c1; }
+.swagger-ui .opblock.opblock-get { background: rgba(96,165,250,.07); border-color: rgba(96,165,250,.35); }
+.swagger-ui .opblock.opblock-post { background: rgba(94,234,212,.06); border-color: rgba(94,234,212,.32); }
+.swagger-ui .opblock.opblock-patch { background: rgba(251,191,36,.07); border-color: rgba(251,191,36,.32); }
+.swagger-ui .opblock.opblock-delete { background: rgba(255,180,171,.06); border-color: rgba(255,180,171,.3); }
+.swagger-ui .opblock .opblock-body, .swagger-ui .opblock .opblock-section-header { background: #101319; }
+.swagger-ui .opblock .opblock-section-header h4, .swagger-ui .opblock .opblock-section-header label { color: #f4f6f9; }
+.swagger-ui .opblock-description-wrapper p, .swagger-ui .opblock-external-docs-wrapper p,
+.swagger-ui .opblock-title_normal p, .swagger-ui .response-col_status,
+.swagger-ui .response-col_links, .swagger-ui .tab li { color: #a8b2c1; }
+.swagger-ui .btn { background: #151921; color: #f4f6f9; border-color: #333b49; box-shadow: none; }
+.swagger-ui .btn:hover { border-color: #5eead4; color: #5eead4; }
+.swagger-ui .btn.execute { background: #5eead4; color: #04211c; border-color: #5eead4; }
+.swagger-ui select, .swagger-ui input[type=text], .swagger-ui input[type=email],
+.swagger-ui input[type=file], .swagger-ui textarea {
+  background: #0b0e13; color: #f4f6f9; border-color: #333b49;
+}
+.swagger-ui table thead tr td, .swagger-ui table thead tr th { color: #7f8a9b; border-color: #232833; }
+.swagger-ui table tbody tr td { color: #c6cfdb; border-color: #232833; }
+.swagger-ui .model-box, .swagger-ui section.models { background: #151921; border-color: #232833; }
+.swagger-ui section.models .model-container { background: #101319; border-color: #232833; }
+.swagger-ui .model-title, .swagger-ui .model, .swagger-ui .property { color: #f4f6f9; }
+.swagger-ui .highlight-code, .swagger-ui .microlight { background: #080a0c; }
+.swagger-ui .copy-to-clipboard { background: #232833; }
+.swagger-ui .response-col_description__inner div.markdown p { color: #a8b2c1; }

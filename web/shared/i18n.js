@@ -826,7 +826,13 @@
         const url = new URL(window.location.href);
         if (code === 'en') url.searchParams.delete('lang');
         else url.searchParams.set('lang', code);
-        window.location.href = url.toString();
+        // Mueve la burbuja antes de recargar para que se vea la transición.
+        document.documentElement.lang = code;
+        grupo.querySelectorAll('a[data-lang]').forEach((otro) => {
+          if (otro.dataset.lang === code) otro.setAttribute('aria-current', 'true');
+          else otro.removeAttribute('aria-current');
+        });
+        window.setTimeout(() => { window.location.href = url.toString(); }, 240);
       });
     });
   }

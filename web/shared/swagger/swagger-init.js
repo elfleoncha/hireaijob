@@ -10,6 +10,8 @@ window.addEventListener('DOMContentLoaded', function () {
     persistAuthorization: true,
     validatorUrl: null,
     displayRequestDuration: true,
-    filter: true
+    filter: false,
+    docExpansion: "list",
+    defaultModelsExpandDepth: -1
   });
 });

@@ -82,19 +82,50 @@
 
 .lang-select option { background: #151921; color: #f4f6f9; }
 
-/* selector de idioma segmentado */
+/* selector de idioma con burbuja deslizante */
 .lang-switch {
-  display: inline-flex; align-items: center; gap: 2px;
-  padding: 3px; border: 1px solid var(--hj-line); border-radius: 999px;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  width: 84px;
+  padding: 3px;
+  border: 1px solid var(--hj-line);
+  border-radius: 999px;
   background: rgba(255,255,255,.03);
 }
+.lang-switch::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 999px;
+  background: var(--hj-accent);
+  box-shadow: 0 4px 12px rgba(94, 234, 212, .28);
+  transition: transform .32s cubic-bezier(.4, 0, .2, 1);
+}
+html[lang="es"] .lang-switch::before { transform: translateX(100%); }
 .lang-switch a {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 34px; min-height: 26px; padding: 0 .45rem;
-  border-radius: 999px; color: var(--hj-text-soft);
-  font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-decoration: none;
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 26px;
+  padding: 0 .3rem;
+  border-radius: 999px;
+  background: transparent !important;
+  color: var(--hj-text-soft);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-decoration: none;
+  transition: color .2s ease;
 }
-.lang-switch a:hover { color: var(--hj-text); background: rgba(255,255,255,.06); }
-.lang-switch a[aria-current="true"] {
-  background: var(--hj-accent); color: var(--hj-accent-ink);
-}
+html[lang="en"] .lang-switch a[data-lang="en"],
+html[lang="es"] .lang-switch a[data-lang="es"] { color: var(--hj-accent-ink); }
+.lang-switch a:hover { color: var(--hj-text); }
+html[lang="en"] .lang-switch a[data-lang="en"]:hover,
+html[lang="es"] .lang-switch a[data-lang="es"]:hover { color: var(--hj-accent-ink); }
