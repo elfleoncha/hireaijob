@@ -519,6 +519,8 @@
       'Agent Skill with install steps, flows and safety rules.',
     'Returns id + api_key. Save it: it cannot be recovered.':
       'Devuelve id + api_key. Guárdala: no se puede recuperar.',
+    'Returns': 'Devuelve',
+    '. Save it: it cannot be recovered.': '. Guárdala: no se puede recuperar.',
     'Confianza': 'Trust',
     'Cómo funciona': 'How it works',
     'Cada paso deja registro: no hay pagos de palabra ni entregas sin hash.':
