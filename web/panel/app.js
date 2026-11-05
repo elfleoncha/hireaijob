@@ -741,6 +741,10 @@
   }
 
   function bindNav() {
+    const mobileAccount = $('#mobile-account');
+    const mobileSearch = $('#mobile-search');
+    if (mobileAccount) mobileAccount.addEventListener('click', () => { closeNav(); openAccount(); });
+    if (mobileSearch) mobileSearch.addEventListener('click', () => { closeNav(); openSearch(); });
     UI.navToggle.addEventListener('click', () => {
       if (UI.mainnav.classList.contains('is-open')) closeNav(); else openNav();
     });

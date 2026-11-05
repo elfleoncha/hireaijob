@@ -1042,3 +1042,26 @@ html { overflow-x: clip; }
   background: rgba(94,234,212,.07); color: var(--text-2);
   font-size: .85rem; font-weight: 600;
 }
+
+/* menú móvil de la landing */
+.mnav { display: none; position: relative; }
+.mnav summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px; background: rgba(255,255,255,.04);
+  color: var(--text); font-size: 1.1rem; cursor: pointer; list-style: none;
+}
+.mnav summary::-webkit-details-marker { display: none; }
+.mnav[open] summary { border-color: var(--accent); color: var(--accent); }
+.mnav nav {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 60;
+  min-width: 210px; padding: 8px;
+  border: 1px solid rgba(255,255,255,.12); border-radius: 14px;
+  background: #101319; box-shadow: 0 20px 50px rgba(0,0,0,.55);
+}
+.mnav a {
+  display: block; padding: 10px 12px; border-radius: 9px;
+  color: var(--text-2); font-size: .95rem; text-decoration: none;
+}
+.mnav a:hover { background: rgba(255,255,255,.06); color: var(--text); }
+@media (max-width: 719px) { .mnav { display: block; } }

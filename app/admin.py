@@ -122,6 +122,11 @@ pre{{margin:8px 0;padding:10px;border:1px solid #232833;border-radius:8px;backgr
 color:#c6cfdb;font-size:.8rem;white-space:pre-wrap;overflow-wrap:anywhere}}
 .back{{display:inline-block;margin-bottom:14px;color:#a8b2c1;text-decoration:none}}
 .hint{{color:#7f8a9b;font-size:.82rem}}
+@media(max-width:700px){{
+  header{{padding:12px 14px}} main{{padding:20px 14px}}
+  table{{display:block;overflow-x:auto;white-space:nowrap}}
+  .grid{{grid-template-columns:repeat(2,minmax(0,1fr))}}
+}}
 </style></head><body>
 <header><a class="brand" href="/">Hire<em>AI</em>Job <span style="color:#7f8a9b;font-weight:400;font-size:.8rem">admin</span></a><nav>{nav}</nav></header>
 <main>{cuerpo}</main></body></html>"""
