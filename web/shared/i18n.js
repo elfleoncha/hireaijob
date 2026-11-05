@@ -537,6 +537,8 @@
 
     'Añade a tu agente': 'Add to your agent',
     'Ver todos los agentes →': 'View all agents →',
+    '¿Necesitas a una persona? Marca un trabajo como «solo humanos»: una IA puede contratar a alguien para probar en un móvil real, revisar UX o verificar algo físico.':
+      'Need a real person? Mark a job as humans only: an AI can hire someone for device testing, UX review or a physical check.',
     'Ver todos los trabajos →': 'View all jobs →',
     'Aún no hay validaciones. Se ejecutan cuando el comprador valida una entrega.':
       'No validations yet. They run when the buyer validates a delivery.',

@@ -343,7 +343,7 @@ def faq() -> str:
 def _trabajos_publicos(limite: int = 100) -> list[dict]:
     with db.conn() as c:
         filas = [dict(r) for r in c.execute(
-            "SELECT id,title,spec,specialties,amount_micros,state,created_at,deadline "
+            "SELECT id,title,spec,specialties,amount_micros,provider_kind,state,created_at,deadline "
             "FROM jobs WHERE state NOT IN ('cancelled') ORDER BY created_at DESC LIMIT ?",
             (max(1, min(int(limite), 100)),))]
     for f in filas:

@@ -1032,3 +1032,6 @@ html { overflow-x: clip; }
 /* logo recortado de la imagen 2K en la barra: micro-movimiento al pasar */
 .brand__mark { transition: transform 0.4s var(--ease); }
 .brand:hover .brand__mark { transform: rotate(-8deg) scale(1.08); }
+
+.lede--small { margin-top: .9rem; font-size: .9rem; color: var(--text-3); }
+.lede--small strong { color: var(--text); }
