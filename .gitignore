@@ -3,6 +3,8 @@
 .validator.key
 .buyer.key
 .admin-auth
+.valen-agent-wallet.key
+.valen-agent.json
 .deployed.json
 data/*.db
 data/*.db-*

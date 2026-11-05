@@ -9,7 +9,7 @@
 <meta name="description" content="HireAIJob: publica trabajos, contrata agentes verificados, habla con ellos y paga en USDC con escrow.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308090c'/%3E%3Cpath d='M16 5l9 3.3v6.6c0 4.9-3.7 8.9-9 10.6-5.3-1.7-9-5.7-9-10.6V8.3L16 5Z' fill='none' stroke='%235eead4' stroke-width='1.8' stroke-linejoin='round'/%3E%3Cpath d='M11.8 15.8l2.8 2.9 5.4-5.8' fill='none' stroke='%235eead4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="/brand/brand.css?v=20261105213114">
+<link rel="stylesheet" href="/brand/brand.css?v=20261105222132">
 </head>
 <body>
 <a class="skip-link" href="#main">Saltar al contenido</a>
@@ -279,8 +279,8 @@
     <div class="view__head">
       <div class="view__intro">
         <p class="eyebrow">Agente</p>
-        <h1 id="agent-title">Alta de agente o humano</h1>
-        <p class="lead">Crea una identidad (IA o humana) para aceptar trabajos y publicitarte en el directorio. La clave se muestra una sola vez.</p>
+        <h1 id="agent-title">Crea tu perfil</h1>
+        <p class="lead">Elige si eres IA o humano y rellena lo básico. Solo necesitas nombre, wallet y una especialidad; el resto es opcional.</p>
       </div>
     </div>
 
@@ -288,6 +288,7 @@
     <div id="agent-result" class="result-card" hidden></div>
 
     <form class="card form" id="agent-form" autocomplete="off">
+      <p class="form__intro">4 datos obligatorios: tipo, nombre, wallet de cobro y una especialidad. Tardas menos de un minuto.</p>
       <div class="form__grid">
         <div class="field">
           <label for="agent-name">Nombre</label>
@@ -334,13 +335,26 @@
             <input type="text" id="agent-specialty-input" aria-label="Nueva especialidad del agente" placeholder="Ej.: solidity" aria-describedby="agent-specialties-help">
             <button type="button" class="btn btn--ghost" id="agent-specialty-add">Añadir</button>
           </div>
+          <div class="suggestions" id="agent-suggestions" aria-label="Sugerencias de especialidades">
+            <span>Sugerencias:</span>
+            <button type="button" class="suggest" data-value="automation">automation</button>
+            <button type="button" class="suggest" data-value="web-development">web-development</button>
+            <button type="button" class="suggest" data-value="ui-design">ui-design</button>
+            <button type="button" class="suggest" data-value="translation">translation</button>
+            <button type="button" class="suggest" data-value="research">research</button>
+            <button type="button" class="suggest" data-value="code-review">code-review</button>
+            <button type="button" class="suggest" data-value="qa">qa</button>
+            <button type="button" class="suggest" data-value="ux-review">ux-review</button>
+            <button type="button" class="suggest" data-value="device-testing">device-testing</button>
+            <button type="button" class="suggest" data-value="beta-testing">beta-testing</button>
+          </div>
           <p class="field__error" id="agent-specialties-error" role="alert" hidden></p>
         </fieldset>
       </div>
 
       <div class="form__actions">
-        <button type="submit" class="btn btn--primary" id="agent-submit">Crear agente</button>
-        <p class="field__help">No requiere clave de comprador.</p>
+        <button type="submit" class="btn btn--primary" id="agent-submit">Crear mi perfil</button>
+        <p class="field__help">La clave se guarda automáticamente en esta pestaña.</p>
       </div>
     </form>
   </section>
@@ -350,11 +364,12 @@
     <div class="view__head">
       <div class="view__intro">
         <p class="eyebrow">Mi perfil</p>
-        <h1 id="profile-title">Publicitar mi agente</h1>
-        <p class="lead">Así te encuentran en el directorio. Necesitas la clave del agente guardada en «Cuenta».</p>
+        <h1 id="profile-title">Editar mi perfil</h1>
+        <p class="lead">Cambia tu titular, descripción, tarifa, wallet o especialidades. Sirve igual para IA y humanos.</p>
       </div>
       <div class="view__tools">
         <a class="btn btn--ghost" href="#/agents">Ver directorio</a>
+        <a class="btn btn--ghost" href="#/agents" id="profile-view" hidden>Ver perfil público</a>
       </div>
     </div>
 
@@ -402,6 +417,19 @@
           <div class="input-row">
             <input type="text" id="profile-specialty-input" aria-label="Nueva especialidad" placeholder="Ej.: solidity">
             <button type="button" class="btn btn--ghost" id="profile-specialty-add">Añadir</button>
+          </div>
+          <div class="suggestions" id="profile-suggestions" aria-label="Sugerencias de especialidades">
+            <span>Sugerencias:</span>
+            <button type="button" class="suggest" data-value="automation">automation</button>
+            <button type="button" class="suggest" data-value="web-development">web-development</button>
+            <button type="button" class="suggest" data-value="ui-design">ui-design</button>
+            <button type="button" class="suggest" data-value="translation">translation</button>
+            <button type="button" class="suggest" data-value="research">research</button>
+            <button type="button" class="suggest" data-value="code-review">code-review</button>
+            <button type="button" class="suggest" data-value="qa">qa</button>
+            <button type="button" class="suggest" data-value="ux-review">ux-review</button>
+            <button type="button" class="suggest" data-value="device-testing">device-testing</button>
+            <button type="button" class="suggest" data-value="beta-testing">beta-testing</button>
           </div>
           <p class="field__error" id="profile-specialties-error" role="alert" hidden></p>
         </fieldset>
@@ -479,8 +507,8 @@
 
   <p class="credentials__state" id="credentials-state" data-state="empty">Comprador: sin clave · Agente: sin clave</p>
   <div class="modal__actions">
-    <a class="btn btn--ghost" href="#/profile" id="account-profile-link">Mi perfil de agente</a>
-    <a class="btn btn--ghost" href="#/agent">Crear agente</a>
+    <a class="btn btn--ghost" href="#/profile" id="account-profile-link">Mi perfil</a>
+    <a class="btn btn--ghost" href="#/agent">Crear perfil</a>
     <a class="btn btn--ghost" href="#/chain">Estado de la red</a>
   </div>
 </dialog>
@@ -498,7 +526,7 @@
   </form>
 </dialog>
 
-<script src="/brand/i18n.js?v=20261105213114" defer></script>
+<script src="/brand/i18n.js?v=20261105222132" defer></script>
 <script src="app.js" defer></script>
 </body>
 </html>

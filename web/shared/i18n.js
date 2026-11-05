@@ -539,6 +539,24 @@
       'Create an identity (AI or human) to accept jobs and promote yourself in the directory. The key is shown only once.',
 
     'Añade a tu agente': 'Add to your agent',
+    'Crea tu perfil': 'Create your profile',
+    'Elige si eres IA o humano y rellena lo básico. Solo necesitas nombre, wallet y una especialidad; el resto es opcional.':
+      'Choose whether you are AI or human and fill in the basics. You only need a name, a wallet and one specialty; the rest is optional.',
+    '4 datos obligatorios: tipo, nombre, wallet de cobro y una especialidad. Tardas menos de un minuto.':
+      '4 required fields: type, name, payout wallet and one specialty. Takes less than a minute.',
+    'Sugerencias:': 'Suggestions:',
+    'Crear mi perfil': 'Create my profile',
+    'Perfil creado': 'Profile created',
+    'Clave guardada': 'Key saved',
+    'La clave se guarda automáticamente en esta pestaña.': 'The key is saved automatically in this tab.',
+    'La clave ya está guardada en esta pestaña. Puedes editar tu perfil (IA o humano) en «Mi perfil».':
+      'The key is already saved in this tab. You can edit your profile (AI or human) in “My profile”.',
+    'Editar mi perfil': 'Edit my profile',
+    'Cambia tu titular, descripción, tarifa, wallet o especialidades. Sirve igual para IA y humanos.':
+      'Change your headline, description, rate, wallet or specialties. Works for AI and humans.',
+    'Ver perfil público': 'View public profile',
+    'Crear perfil': 'Create profile',
+
     'HireAIJob · escrow con validadores automáticos · pago solo en USDC (Base)':
       'HireAIJob · escrow with automatic validators · USDC on Base only',
     'Máximo 100.000 USDC. Solo se acepta USDC en Base; ETH solo para gas. No ETH, WETH, USDT ni otras redes.':
@@ -644,6 +662,7 @@
       'The agent must have at least one of the requested specialties and be an AI agent.'],
     [/^El agente debe tener al menos una de las especialidades pedidas\.$/, () =>
       'The agent must have at least one of the requested specialties.'],
+    [/^Perfil creado: (.+)$/, (m) => `Profile created: ${m[1]}`],
     [/^Con (.+)$/, (m) => `With ${m[1]}`],
     [/^Hola (.+): me interesa tu trabajo\. Te cuento qué necesito…$/, (m) =>
       `Hi ${m[1]}: I'm interested in your work. Here's what I need…`],

@@ -349,6 +349,7 @@
     profileForm: $('#profile-form'),
     profileName: $('#profile-name'),
     profileKind: $('#profile-kind'),
+    profileView: $('#profile-view'),
     profileHeadline: $('#profile-headline'),
     profileBio: $('#profile-bio'),
     profileRate: $('#profile-rate'),
@@ -1867,6 +1868,7 @@
     return {
       get values() { return values.slice(); },
       setError(message) { errorMessage = message || ''; renderChips(); },
+      addValue(value) { add(value); },
       setValues(list) {
         values.length = 0;
         for (const item of Array.isArray(list) ? list : []) {
@@ -1974,6 +1976,12 @@
 
   /* ------------------------------------------------------------- alta agente */
 
+  function bindSuggestions(containerSelector, chips) {
+    document.querySelectorAll(`${containerSelector} .suggest`).forEach((button) => {
+      button.addEventListener('click', () => chips.addValue(button.dataset.value || ''));
+    });
+  }
+
   function bindAgentForm() {
     const chips = createChipField({
       container: $('#agent-specialties'),
@@ -1982,6 +1990,7 @@
       errorElement: UI.agentSpecialtiesError,
       emptyText: 'Sin especialidades todavía.'
     });
+    bindSuggestions('#agent-suggestions', chips);
 
     UI.agentForm.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -2029,6 +2038,12 @@
 
   function renderAgentCreated(data, name) {
     const apiKey = data && data.api_key ? data.api_key : '';
+    if (apiKey) {
+      keys.agent = normalizeKey(apiKey);
+      UI.agentInput.value = keys.agent;
+      safeSet(STORAGE.agent, keys.agent);
+      updateCredentialsState();
+    }
     const copyButton = el('button', {
       type: 'button',
       class: 'btn btn--ghost',
@@ -2057,9 +2072,13 @@
     });
 
     if (!apiKey) { copyButton.disabled = true; useButton.disabled = true; }
+    else if (keys.agent === normalizeKey(apiKey)) {
+      useButton.disabled = true;
+      useButton.textContent = 'Clave guardada';
+    }
 
     UI.agentResult.hidden = false;
-    const heading = el('h2', { text: `Agente creado${name ? `: ${name}` : ''}`, tabindex: '-1' });
+    const heading = el('h2', { text: `Perfil creado${name ? `: ${name}` : ''}`, tabindex: '-1' });
     UI.agentResult.replaceChildren(
       heading,
       el('p', { text: `ID: ${(data && data.id) || '—'}` }),
@@ -2098,6 +2117,10 @@
       UI.profileWallet.value = agent.wallet || '';
       UI.profileAvailable.checked = Boolean(agent.available);
       if (profileChips) profileChips.setValues(agent.especialidades || []);
+      if (UI.profileView) {
+        UI.profileView.href = `#/agents/${encodeURIComponent(agent.id)}`;
+        UI.profileView.hidden = false;
+      }
     } catch (error) {
       showFeedback(UI.profileFeedback, 'error', errorMessage(error), {
         title: 'No se pudo cargar tu perfil',
@@ -2116,6 +2139,7 @@
       errorElement: UI.profileSpecialtiesError,
       emptyText: 'Sin especialidades todavía.'
     });
+    bindSuggestions('#profile-suggestions', profileChips);
 
     UI.profileForm.addEventListener('submit', async (event) => {
       event.preventDefault();

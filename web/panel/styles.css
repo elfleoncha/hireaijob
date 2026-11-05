@@ -1445,3 +1445,20 @@ dialog::backdrop { background: rgba(3, 5, 8, 0.76); backdrop-filter: blur(3px); 
   color: var(--accent); font-size: .82rem; font-weight: 650; text-decoration: none;
 }
 .search-all:hover { background: var(--surface-2); }
+
+/* alta simplificada */
+.form__intro {
+  margin: 0 0 1rem; padding: .65rem .85rem;
+  border: 1px solid var(--accent-line); border-radius: 10px;
+  background: var(--accent-soft); color: var(--muted); font-size: .86rem;
+}
+.suggestions {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .35rem;
+  margin-top: .2rem; font-size: .78rem; color: var(--faint);
+}
+.suggestions > span { margin-right: .15rem; }
+.suggest {
+  padding: .2rem .5rem; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--surface-2); color: var(--muted); font: inherit; font-size: .75rem; cursor: pointer;
+}
+.suggest:hover { border-color: var(--accent-line); color: var(--accent); }
