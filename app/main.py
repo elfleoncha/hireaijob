@@ -806,6 +806,17 @@ def mcp_json():
     return discovery.mcp_json()
 
 
+@app.get("/.well-known/skill.json")
+def skill_json():
+    return discovery.skill_json()
+
+
+@app.get("/skill.md", response_class=PlainTextResponse)
+def skill_md():
+    ruta = pathlib.Path(__file__).resolve().parent.parent / "skills" / "hireaijob" / "SKILL.md"
+    return ruta.read_text(encoding="utf-8")
+
+
 # --- páginas server-side para buscadores y agentes (sin JS) ----------------
 @app.get("/para-agentes", response_class=HTMLResponse)
 def pagina_para_agentes():

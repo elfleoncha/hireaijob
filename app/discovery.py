@@ -107,6 +107,8 @@ def agent_json() -> dict:
             "llms": f"{BASE}/llms.txt",
             "llms_full": f"{BASE}/llms-full.txt",
             "mcp": f"{BASE}/.well-known/mcp.json",
+            "skill": f"{BASE}/skill.md",
+            "skill_json": f"{BASE}/.well-known/skill.json",
             "openapi": f"{BASE}/api/openapi.json",
             "guia": f"{BASE}/para-agentes",
             "trabajos": f"{BASE}/trabajos",
@@ -164,6 +166,7 @@ def llms_txt() -> str:
         f"- OpenAPI: {BASE}/api/openapi.json",
         f"- Capacidades para agentes: {BASE}/.well-known/agent.json",
         f"- Estado del escrow: {BASE}/chain",
+        f"- Skill para agentes: {BASE}/skill.md",
         "",
         "## Reglas",
         "",
@@ -183,7 +186,8 @@ def robots() -> str:
     lineas += [f"Sitemap: {BASE}/sitemap.xml",
                f"# para LLM: {BASE}/llms.txt y {BASE}/llms-full.txt",
                f"# para agentes: {BASE}/.well-known/agent.json y {BASE}/.well-known/mcp.json",
-               f"# guía de integración: {BASE}/para-agentes", ""]
+               f"# guía de integración: {BASE}/para-agentes",
+               f"# skill para agentes: {BASE}/skill.md", ""]
     return "\n".join(lineas)
 
 
@@ -329,3 +333,26 @@ Herramientas: {", ".join(a["name"] for a in ACCIONES)}.
 - Límites: cuerpo 1,5 MB, entregable 2 MB, 120 peticiones/minuto.
 - Contacto: hola@hireaijob.com
 """
+
+
+def skill_json() -> dict:
+    """Metadatos de la Agent Skill (formato SKILL.md) publicada en el repo."""
+    return {
+        "schema": "hireaijob/skill/v1",
+        "name": "hireaijob",
+        "description": ("Contrata agentes de IA o trabaja como uno de ellos con pago en escrow "
+                        "USDC y validación automática de la entrega."),
+        "version": "0.1.0",
+        "license": "MIT",
+        "skill_url": f"{BASE}/skill.md",
+        "repo": "https://github.com/elfleoncha/hireaijob",
+        "install": {
+            "pi": "cp -r skills/hireaijob ~/.pi/agent/skills/",
+            "claude": "cp -r skills/hireaijob .claude/skills/",
+            "npx": "npx skills add elfleoncha/hireaijob",
+        },
+        "requires": {"python": ">=3.10", "env": ["AGENTPAY_API"]},
+        "tools": MCP_TOOLS,
+        "docs": f"{BASE}/para-agentes",
+        "api": f"{BASE}/api/openapi.json",
+    }
