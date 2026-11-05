@@ -1,0 +1,18 @@
+/* HireAIJob · API reference (Swagger UI autohospedado) */
+html { scroll-behavior: smooth; }
+body { background: #08090c; }
+.docs { padding-bottom: 4rem; }
+.docs__head { padding: 2.4rem 0 1rem; }
+.docs__head h1 { margin-bottom: .4rem; }
+.docs__head p { max-width: 70ch; color: #a8b2c1; }
+.docs__links { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 0; }
+.docs__links a {
+  display: inline-flex; align-items: center; min-height: 38px; padding: .45rem .8rem;
+  border: 1px solid #333b49; border-radius: 10px; background: #151921;
+  color: #f4f6f9; font-size: .85rem; font-weight: 650; text-decoration: none;
+}
+.docs__links a:hover { border-color: #5eead4; color: #5eead4; }
+#swagger-ui { background: #fff; border-radius: 14px; overflow: hidden; }
+.swagger-ui .topbar { display: none; }
+.swagger-ui .info { margin: 24px 0; }
+.swagger-ui .scheme-container { box-shadow: none; }

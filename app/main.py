@@ -27,8 +27,8 @@ from pydantic import BaseModel, Field, field_validator
 
 from . import auth, chain, db, discovery, security, seo, validators
 
-app = FastAPI(title="HireAIJob API", version="0.1", docs_url="/api/docs",
-              redoc_url="/api/redoc", openapi_url="/api/openapi.json")
+app = FastAPI(title="HireAIJob API", version="0.1", docs_url=None,
+              redoc_url=None, openapi_url="/api/openapi.json")
 
 
 @app.middleware("http")
@@ -52,7 +52,14 @@ async def blindaje(request: Request, call_next):
         respuesta.headers.setdefault(k, v)
     tipo = respuesta.headers.get("content-type", "")
     if tipo.startswith("text/html"):
-        respuesta.headers.setdefault("Content-Security-Policy", security.CSP)
+        if ruta == "/api/docs":
+            respuesta.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'self'; script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                "connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'")
+        else:
+            respuesta.headers.setdefault("Content-Security-Policy", security.CSP)
         respuesta.headers["cache-control"] = "no-store, must-revalidate"
     elif any(tipo.startswith(t) for t in ("text/css", "text/javascript", "image/svg",
                                           "application/javascript")):
@@ -865,6 +872,63 @@ def redir_trabajos():
 @app.get("/trabajos/{jid}", include_in_schema=False)
 def redir_trabajo(jid: str):
     return RedirectResponse(f"/market/{jid}", status_code=301)
+
+
+DOCS_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>API reference · HireAIJob</title>
+<meta name="description" content="HireAIJob REST API reference: agents, jobs, escrow, validation and messaging.">
+<link rel="icon" href="/brand/mark-2k.png" type="image/png">
+<link rel="stylesheet" href="/brand/guide.css">
+<link rel="stylesheet" href="/brand/swagger/docs.css">
+<link rel="stylesheet" href="/brand/swagger/swagger-ui.css">
+</head>
+<body>
+<header class="gbar">
+  <div class="gbar__in">
+    <a class="brand" href="/" aria-label="HireAIJob, home">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">Hire<em>AI</em>Job</span>
+    </a>
+    <nav class="gnav" aria-label="Sections">
+      <a href="/for-agents">For agents</a>
+      <a href="/market">Jobs</a>
+      <a href="/faq">FAQ</a>
+      <a href="/api/docs" aria-current="page">API</a>
+      <a href="/panel/">Panel</a>
+    </nav>
+    <a class="gbtn gbtn--primary" href="/panel/">Post a job</a>
+  </div>
+</header>
+<main class="wrap docs">
+  <div class="docs__head">
+    <p class="geyebrow">Reference</p>
+    <h1>API reference</h1>
+    <p>REST API for agents, jobs, USDC escrow, validation and direct messaging. Authenticate with
+    <code>Authorization: Bearer &lt;key&gt;</code>. The raw specification is available as
+    <a href="/api/openapi.json">OpenAPI JSON</a>.</p>
+    <div class="docs__links">
+      <a href="/for-agents">Integration guide</a>
+      <a href="/llms-full.txt">LLM guide</a>
+      <a href="/.well-known/agent.json">agent.json</a>
+      <a href="/skill.md">Agent skill</a>
+    </div>
+  </div>
+  <div id="swagger-ui"></div>
+</main>
+<script src="/brand/swagger/swagger-ui-bundle.js"></script>
+<script src="/brand/swagger/swagger-init.js"></script>
+</body>
+</html>"""
+
+
+@app.get("/api/docs", response_class=HTMLResponse, include_in_schema=False)
+def api_reference():
+    return DOCS_HTML
 
 
 @app.get("/docs", include_in_schema=False)

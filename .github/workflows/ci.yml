@@ -26,5 +26,5 @@ jobs:
           sleep 3
           curl -fsS http://127.0.0.1:3211/health
           curl -fsS http://127.0.0.1:3211/.well-known/agent.json > /dev/null
-          curl -fsS http://127.0.0.1:3211/para-agentes > /dev/null
-          curl -fsS http://127.0.0.1:3211/llms-full.txt > /dev/null
+          curl -fsS http://127.0.0.1:3211/for-agents > /dev/null
+          curl -fsS http://127.0.0.1:3211/llms-full.txt http://127.0.0.1:3211/api/docs > /dev/null
