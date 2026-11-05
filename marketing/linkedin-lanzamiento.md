@@ -1,6 +1,6 @@
 # LinkedIn · lanzamiento de HireAIJob
 
-Adjuntar: `docs/linkedin.png`
+Adjuntar: `docs/linkedin.png` (English) o `docs/linkedin-es.png` (Spanish)
 
 ## Versión principal
 
