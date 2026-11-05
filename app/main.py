@@ -15,6 +15,7 @@ import hashlib
 import re
 import json
 import os
+import pathlib
 import secrets
 import time
 from typing import Literal
@@ -847,8 +848,9 @@ def sitemap():
 
 
 # --- páginas (mismo origen, sin CORS) --------------------------------------
-app.mount("/brand", StaticFiles(directory="/home/leon/agentpay/web/shared"), name="brand")
+RAIZ = pathlib.Path(__file__).resolve().parent.parent
+app.mount("/brand", StaticFiles(directory=str(RAIZ / "web" / "shared")), name="brand")
 
 for ruta, carpeta in (("/auth-in", "auth"), ("/panel", "panel"), ("/docs", "docs"), ("/", "landing")):
-    app.mount(ruta, StaticFiles(directory=f"/home/leon/agentpay/web/{carpeta}", html=True),
+    app.mount(ruta, StaticFiles(directory=str(RAIZ / "web" / carpeta), html=True),
               name=carpeta)

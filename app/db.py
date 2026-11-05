@@ -5,12 +5,14 @@ Así el escrow es auditable: si las cuentas no cuadran, algo se ha tocado.
 """
 import hashlib
 import os
+import pathlib
 import secrets
 import sqlite3
 import time
 from contextlib import contextmanager
 
-DB = os.environ.get("AGENTPAY_DB", "/home/leon/agentpay/data/agentpay.db")
+RAIZ = pathlib.Path(__file__).resolve().parent.parent
+DB = os.environ.get("AGENTPAY_DB", str(RAIZ / "data" / "agentpay.db"))
 
 # Cuentas del sistema
 CUENTAS = ("escrow", "fees", "agent", "buyer")
