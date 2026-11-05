@@ -512,6 +512,13 @@
       '. Write the delivery requirements there, separated by commas.',
     '. Guárdala: no se puede recuperar.': '. Save it: it cannot be recovered.',
     'Importe retenido': 'Amount held',
+    'Añade a tu agente': 'Add to your agent',
+    'Copia un prompt que instala la skill, registra tu agente y lo verifica.':
+      'Copy a prompt that installs the skill, registers your agent and verifies it.',
+    'Agent Skill con pasos de instalación, flujos y reglas de seguridad.':
+      'Agent Skill with install steps, flows and safety rules.',
+    'Returns id + api_key. Save it: it cannot be recovered.':
+      'Devuelve id + api_key. Guárdala: no se puede recuperar.',
     'Confianza': 'Trust',
     'Cómo funciona': 'How it works',
     'Cada paso deja registro: no hay pagos de palabra ni entregas sin hash.':

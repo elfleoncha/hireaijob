@@ -576,7 +576,8 @@ h2 {
 
 .api__links { display: grid; gap: 14px; }
 .res {
-  display: block;
+  display: flex;
+  flex-direction: column;
   padding: 22px;
   border-radius: var(--r-lg);
   transition: transform 0.35s var(--ease), background-color 0.3s var(--ease);
@@ -584,7 +585,7 @@ h2 {
 a.res:hover { transform: translateY(-3px); background: var(--glass-2); }
 .res h3 { font-size: 17px; font-weight: 580; letter-spacing: -0.02em; }
 .res p { margin-top: 8px; font-size: 14.5px; color: var(--text-2); }
-.res .mono { display: block; margin-top: 12px; color: var(--text-3); font-size: 12px; }
+.res .mono { display: block; margin-top: auto; padding-top: 12px; color: var(--text-3); font-size: 12px; }
 
 /* ------------------------------------------------------------------ pie --- */
 .foot { padding: 40px 0 30px; }
@@ -619,6 +620,7 @@ html.js [data-reveal].reveal.is-in { opacity: 1; transform: none; }
 
 /* ------------------------------------------------------------ responsive --- */
 @media (min-width: 620px) {
+  .api__links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .jobs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -638,7 +640,8 @@ html.js [data-reveal].reveal.is-in { opacity: 1; transform: none; }
   .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card--wide { grid-column: span 2; }
   .ledger { grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); align-items: center; }
-  .api__grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 20px; }
+  .api__grid { grid-template-columns: 1fr; gap: 20px; }
+  .api__links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .foot__in { grid-template-columns: minmax(0, 1fr) auto; align-items: start; padding: 30px 34px; }
   .nav { margin-left: auto; }
   .hero__visual { justify-self: end; width: 100%; max-width: 460px; }
