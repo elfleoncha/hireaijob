@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Instalar dependencias
+        run: pip install fastapi uvicorn httpx pydantic
+      - name: Comprobar sintaxis
+        run: python -m compileall -q app mcp_server.py demo.py
+      - name: Arrancar y comprobar salud
+        env:
+          AGENTPAY_BUYER_KEY: ci-buyer
+          AGENTPAY_DB: /tmp/ci.db
+        run: |
+          uvicorn app.main:app --port 3211 &
+          sleep 3
+          curl -fsS http://127.0.0.1:3211/health
+          curl -fsS http://127.0.0.1:3211/.well-known/agent.json > /dev/null
+          curl -fsS http://127.0.0.1:3211/para-agentes > /dev/null
+          curl -fsS http://127.0.0.1:3211/llms-full.txt > /dev/null

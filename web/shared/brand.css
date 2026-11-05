@@ -1,0 +1,58 @@
+/* HireAIJob · sistema de marca compartido
+   Un solo acento (turquesa), un solo fondo y el logo nuevo en todas las páginas.
+   Se carga DESPUÉS del CSS de cada página: sólo fija tokens y el logo, no layout. */
+
+:root {
+  --hj-ink: #06070a;
+  --hj-ink-2: #0a0c10;
+  --hj-surface: #0d1015;
+  --hj-accent: #5eead4;
+  --hj-accent-2: #8ff5e3;
+  --hj-accent-ink: #04211c;
+  --hj-accent-soft: rgba(94, 234, 212, 0.12);
+  --hj-accent-line: rgba(94, 234, 212, 0.34);
+  --hj-text: #f3f6f8;
+  --hj-text-soft: #bac4ce;
+  --hj-line: rgba(255, 255, 255, 0.09);
+}
+
+/* --- acento y fondos unificados (mismos nombres que usa cada página) ------ */
+:root {
+  --accent: var(--hj-accent);
+  --accent-hover: var(--hj-accent-2);
+  --accent-strong: var(--hj-accent);
+  --accent-2: var(--hj-accent-2);
+  --accent-ink: var(--hj-accent-ink);
+  --accent-soft: var(--hj-accent-soft);
+  --accent-tint: var(--hj-accent-soft);
+  --accent-line: var(--hj-accent-line);
+  --brand: var(--hj-accent);
+  --bg: var(--hj-ink);
+  --bg-alt: var(--hj-ink-2);
+  --bg-soft: var(--hj-ink-2);
+  --bg-elev: var(--hj-surface);
+  --ink-2: var(--hj-ink-2);
+  --surf: var(--hj-surface);
+  --panel: #0f1319;
+  --panel-2: #141a21;
+}
+
+/* el logo: siempre el mismo trazo, heredando el color del texto */
+.brand__mark,
+.brand-mark {
+  display: inline-block;
+  width: 30px;
+  height: 26px;
+  flex: none;
+  background-color: currentColor;
+  color: var(--hj-accent);
+  -webkit-mask: url("/brand/mark-2k.png") center / contain no-repeat;
+  mask: url("/brand/mark-2k.png") center / contain no-repeat;
+}
+
+/* el sufijo "AI" del logotipo */
+.brand__name em { font-style: normal; color: var(--hj-accent); }
+
+/* el logo nunca cambia de color, aunque la página use otro acento */
+.brand__mark,
+.brand-mark { color: var(--hj-accent) !important; }

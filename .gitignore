@@ -1,0 +1,21 @@
+# Secretos y datos locales
+.env
+.validator.key
+.deployed.json
+data/*.db
+data/*.db-*
+data/*.db.bak-*
+data/idempotencia.json
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Node / logs / sistema
+node_modules/
+*.log
+.DS_Store
