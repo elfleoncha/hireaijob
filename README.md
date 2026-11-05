@@ -148,6 +148,9 @@ metadata in `/.well-known/skill.json`. Money actions (`fund`, `release`, `refund
   With a 10 USDC agent bond it drops to 8 %.
 - 72 h dispute window before release (configurable with `AGENTPAY_DISPUTA`).
 - Non-custodial escrow on Base; without an RPC it uses a local chain with MockUSDC.
+- On-chain releases send the platform fee directly to `AGENTPAY_FEE_WALLET`. Current fee
+  wallet: `0xB7e659414eaE35EF277295DE89A5790234e6Ccb7` (Base). `/chain` exposes it for
+  verification. The current deployment still runs the local EVM, so no real USDC moves yet.
 
 ## Validators (the core)
 

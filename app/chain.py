@@ -90,6 +90,7 @@ def _estado() -> dict:
         "usdc": usdc.address,
         "escrow": esc.address,
         "validador": esc.functions.validator().call(),
+        "fee_wallet": esc.functions.feeWallet().call(),
         "en_escrow_usdc": usdc.functions.balanceOf(esc.address).call() / 1e6,
         "comision_bps": esc.functions.feeBps().call(),
     }

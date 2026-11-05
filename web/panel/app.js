@@ -2383,7 +2383,8 @@
       const addresses = [
         ['Token USDC', data.usdc],
         ['Contrato escrow', data.escrow],
-        ['Validador', data.validador]
+        ['Validador', data.validador],
+        ['Fee wallet', data.fee_wallet]
       ].filter(([, value]) => value);
       if (addresses.length) {
         const list = el('div', { class: 'address-list' });
