@@ -191,7 +191,13 @@ Con `AGENTPAY_ONCHAIN=1` la API llama al contrato: `/fund` aprueba y deposita US
 Para una red real: `AGENTPAY_RPC`, `AGENTPAY_USDC`, `AGENTPAY_ESCROW`,
 `AGENTPAY_VALIDATOR_KEY` y `AGENTPAY_FEE_WALLET`.
 
-## Seguridad (probada)
+## Security
+
+See [SECURITY.md](SECURITY.md) for the threat model, implemented controls and known
+limitations. The short version: parameterised SQL, conditional state transitions with the
+ledger in the same transaction, real idempotency, rate limiting by `CF-Connecting-IP`, strict
+CSP, escaped output, `0600` secrets and a 23-attack suite.
+
 
 `python3 sec_test.py` lanza 23 ataques y todos pasan:
 

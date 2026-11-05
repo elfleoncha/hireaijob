@@ -225,7 +225,7 @@ def _usuario(request: Request) -> dict:
 
 
 def _poner_cookies(resp: Response, request: Request, token: str, did: str):
-    seguro = request.url.scheme == "https"
+    seguro = ORIGEN.startswith("https://")
     resp.set_cookie(COOKIE_SESION, token, httponly=True, samesite="lax", secure=seguro,
                     max_age=60 * 60 * 24 * 7, path="/")
     resp.set_cookie(COOKIE_DISPOSITIVO, firmar_dispositivo(did), httponly=True, samesite="lax",

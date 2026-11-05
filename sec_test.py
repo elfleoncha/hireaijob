@@ -72,7 +72,10 @@ j2 = C.post("/jobs", headers=B, json={"title": "Segundo trabajo", "spec": "Debe 
             "specialties": ["landing-audit"], "amount_usdc": 10}).json()["id"]
 r1 = C.post(f"/jobs/{j2}/fund", headers=h)
 r2 = C.post(f"/jobs/{j2}/fund", headers=h)
-check("reintentar con la misma clave no duplica", r1.status_code == 200 and r2.status_code == 409)
+check("reintentar con la misma clave no duplica",
+      r1.status_code == 200 and r2.status_code == 200 and r1.json() == r2.json())
+check("el reintento no asienta otro depósito",
+      C.get(f"/jobs/{j2}").json()["trabajo"]["escrow_usdc"] == 10.0)
 check("no se puede reutilizar la clave con otro contenido",
       C.post("/jobs", headers={**B, "Idempotency-Key": "pago-1"}, json={
           "title": "Otro", "spec": "Debe incluir: otra cosa.", "specialties": ["x"],

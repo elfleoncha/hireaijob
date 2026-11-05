@@ -1,0 +1,6 @@
+# Optional: on-chain escrow and local EVM tests
+web3>=8.0
+eth-account>=0.14
+eth-tester
+py-evm
+py-solc-x

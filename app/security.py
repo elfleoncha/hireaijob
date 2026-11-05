@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import pathlib
+import threading
 import time
 from collections import defaultdict, deque
 
@@ -17,15 +18,31 @@ RPM = int(os.environ.get("AGENTPAY_RPM", 120))                   # por IP
 RPM_ESCRITURA = int(os.environ.get("AGENTPAY_RPM_WRITE", 30))    # altas y acciones
 
 _ventanas: dict[str, deque] = defaultdict(deque)
+_ultima_limpieza = 0.0
 
 
 def _ip(request) -> str:
-    xff = request.headers.get("x-forwarded-for", "")
-    return (xff.split(",")[0].strip() if xff else (request.client.host if request.client else "?"))
+    """Client IP behind Cloudflare.
+
+    Cloudflare sets CF-Connecting-IP and appends the real peer to X-Forwarded-For.
+    Never trust the first X-Forwarded-For value: a client can send its own header and
+    bypass the rate limit. Prefer the header Cloudflare overwrites.
+    """
+    cf = (request.headers.get("cf-connecting-ip") or "").strip()
+    if cf:
+        return cf
+    real = (request.headers.get("x-real-ip") or "").strip()
+    if real:
+        return real
+    return request.client.host if request.client else "?"
 
 
 def limite_ok(ip: str, tope: int) -> bool:
+    global _ultima_limpieza
     ahora = time.time()
+    if ahora - _ultima_limpieza > 60:
+        limpiar()
+        _ultima_limpieza = ahora
     v = _ventanas[ip]
     while v and ahora - v[0] > 60:
         v.popleft()
@@ -53,6 +70,7 @@ CABECERAS = {
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
     "Cross-Origin-Opener-Policy": "same-origin",
     "Cross-Origin-Resource-Policy": "same-origin",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
 
 # CSP para las páginas propias (sin inline: los .js van aparte)
@@ -72,26 +90,61 @@ def _cargar() -> dict:
         return {}
 
 
+_LOCK = threading.Lock()
+
+
+def _guardar(d: dict):
+    tmp = _RUTA + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, _RUTA)
+
+
 def idempotente(clave: str, ruta: str, cuerpo_hash: str) -> dict | None:
-    """Si ya se ejecutó esa clave con el mismo cuerpo, devuelve la respuesta guardada.
-    Si la clave se reutiliza con otro cuerpo, es un error del cliente (409)."""
-    d = _cargar()
-    hit = d.get(clave)
-    if not hit:
+    """Reserva la clave de forma atómica (un solo proceso).
+
+    Devuelve:
+      None                     -> es la primera vez, sigue el handler
+      {"en_curso": True}       -> otra petición idéntica está en marcha
+      {"status": int, "body":} -> respuesta ya guardada, se devuelve tal cual
+    Si la clave se reutiliza con otro cuerpo o ruta -> 409.
+    """
+    with _LOCK:
+        d = _cargar()
+        hit = d.get(clave)
+        ahora = int(time.time())
+        if hit and ("status" not in hit or hit.get("ts", 0) < ahora - 86400):
+            hit = None   # formato antiguo o caducado
+        if hit:
+            if hit["ruta"] != ruta or hit["hash"] != cuerpo_hash:
+                raise ValueError("Idempotency-Key reused with a different body")
+            if hit.get("status", 0) == 0:
+                return {"en_curso": True}
+            return {"status": hit["status"], "body": hit.get("body")}
+        if len(d) > 5000:
+            for k in list(d)[:1000]:
+                d.pop(k, None)
+        d[clave] = {"ruta": ruta, "hash": cuerpo_hash, "status": 0, "body": None,
+                    "ts": ahora}
+        _guardar(d)
         return None
-    if hit["ruta"] != ruta or hit["hash"] != cuerpo_hash:
-        raise ValueError("Idempotency-Key reused with a different body")
-    return hit["respuesta"]
 
 
-def guardar_idempotencia(clave: str, ruta: str, cuerpo_hash: str, respuesta: dict):
-    d = _cargar()
-    if len(d) > 5000:                    # poda simple por antigüedad
-        for k in list(d)[:1000]:
-            d.pop(k, None)
-    d[clave] = {"ruta": ruta, "hash": cuerpo_hash, "respuesta": respuesta,
-                "ts": int(time.time())}
-    json.dump(d, open(_RUTA, "w"))
+def guardar_idempotencia(clave: str, ruta: str, cuerpo_hash: str, status: int,
+                         body=None):
+    with _LOCK:
+        d = _cargar()
+        d[clave] = {"ruta": ruta, "hash": cuerpo_hash, "status": status, "body": body,
+                    "ts": int(time.time())}
+        _guardar(d)
+
+
+def liberar_idempotencia(clave: str):
+    with _LOCK:
+        d = _cargar()
+        d.pop(clave, None)
+        _guardar(d)
 
 
 def hash_cuerpo(b: bytes) -> str:

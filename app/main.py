@@ -12,6 +12,7 @@ recorded here and, once signed, the payment is marked as settled.
 from __future__ import annotations
 
 import hashlib
+from html import escape
 import re
 import json
 import os
@@ -42,12 +43,39 @@ async def blindaje(request: Request, call_next):
     if largo and int(largo) > security.MAX_BODY:
         return JSONResponse({"detail": "body too large"}, status_code=413)
     cuerpo = b""
+    idem = ""
     if request.method in ("POST", "PUT", "PATCH"):
         cuerpo = await request.body()          # ya limitado por content-length
         if len(cuerpo) > security.MAX_BODY:
             return JSONResponse({"detail": "body too large"}, status_code=413)
         request._body = cuerpo
+        clave = request.headers.get("idempotency-key", "")
+        # No cacheamos /agents (la respuesta contiene api_key) ni /auth (cookies).
+        if clave and len(clave) <= 200 and ruta != "/agents" and not ruta.startswith("/auth"):
+            try:
+                previo = security.idempotente(clave, ruta, security.hash_cuerpo(cuerpo))
+            except ValueError:
+                return JSONResponse({"detail": "Idempotency-Key reused with a different body"},
+                                    status_code=409)
+            if previo and previo.get("en_curso"):
+                return JSONResponse({"detail": "request already in progress; retry"}, status_code=409)
+            if previo:
+                respuesta = JSONResponse(previo.get("body") or {},
+                                         status_code=int(previo.get("status") or 200))
+                for k, v in security.CABECERAS.items():
+                    respuesta.headers.setdefault(k, v)
+                return respuesta
+            idem = clave
     respuesta = await call_next(request)
+    cuerpo_resp = None
+    if idem:
+        # BaseHTTPMiddleware devuelve un stream: hay que leerlo para poder cachear.
+        trozos = []
+        async for trozo in respuesta.body_iterator:
+            trozos.append(trozo)
+        cuerpo_resp = b"".join(trozos)
+        respuesta = Response(content=cuerpo_resp, status_code=respuesta.status_code,
+                             headers=dict(respuesta.headers))
     for k, v in security.CABECERAS.items():
         respuesta.headers.setdefault(k, v)
     tipo = respuesta.headers.get("content-type", "")
@@ -64,14 +92,17 @@ async def blindaje(request: Request, call_next):
     elif any(tipo.startswith(t) for t in ("text/css", "text/javascript", "image/svg",
                                           "application/javascript")):
         respuesta.headers.setdefault("cache-control", "public, max-age=600, must-revalidate")
-    if request.method in ("POST", "PUT", "PATCH") and respuesta.status_code < 400:
-        clave = request.headers.get("idempotency-key")
-        if clave and len(clave) <= 200:
-            try:
-                security.guardar_idempotencia(clave, ruta, security.hash_cuerpo(cuerpo),
-                                              {"status": respuesta.status_code})
-            except Exception:
-                pass
+    if idem:
+        try:
+            if respuesta.status_code < 400 and \
+                    respuesta.headers.get("content-type", "").startswith("application/json"):
+                datos = json.loads((cuerpo_resp or b"").decode("utf-8", "replace"))
+                security.guardar_idempotencia(idem, ruta, security.hash_cuerpo(cuerpo),
+                                              respuesta.status_code, datos)
+            elif respuesta.status_code >= 400:
+                security.liberar_idempotencia(idem)   # permitir reintento tras un fallo
+        except Exception:
+            pass
     return respuesta
 
 # Comisión de plataforma: 10 % con mínimo y techo (en micro-USDC, 1 USDC = 1_000_000)
@@ -245,18 +276,6 @@ def lector(authorization: str | None = Header(default=None)) -> dict:
     return {"role": "agent", "agent": dict(row)}
 
 
-async def ya_hecho(request: Request) -> dict | None:
-    """Devuelve la respuesta previa si la Idempotency-Key ya se usó igual."""
-    clave = request.headers.get("idempotency-key")
-    if not clave:
-        return None
-    try:
-        return security.idempotente(clave, request.url.path,
-                                    security.hash_cuerpo(request._body or b""))
-    except ValueError:
-        raise HTTPException(409, "Idempotency-Key reused with a different body")
-
-
 def micros(usdc: float) -> int:
     return int(round(usdc * 1_000_000))
 
@@ -275,12 +294,24 @@ def _job(c, job_id: str) -> dict:
     return dict(row)
 
 
-def _cambiar(c, job_id: str, estado: str, **campos):
+def _cambiar(c, job_id: str, estado: str, esperado=None, **campos):
+    """Cambia el estado solo si sigue en el estado esperado.
+
+    El UPDATE condicional evita carreras: dos peticiones simultáneas de /fund no
+    pueden pasar ambas la comprobación y asentar dos depósitos.
+    """
     if estado not in ESTADOS:
         raise ValueError(estado)
     sets = ", ".join(["state=?", "updated_at=?"] + [f"{k}=?" for k in campos])
     vals = [estado, int(time.time())] + list(campos.values()) + [job_id]
-    c.execute(f"UPDATE jobs SET {sets} WHERE id=?", vals)
+    sql = f"UPDATE jobs SET {sets} WHERE id=?"
+    if esperado is not None:
+        estados = (esperado,) if isinstance(esperado, str) else tuple(esperado)
+        sql += " AND state IN (" + ",".join("?" * len(estados)) + ")"
+        vals += list(estados)
+    cur = c.execute(sql, vals)
+    if esperado is not None and cur.rowcount != 1:
+        raise HTTPException(409, "state changed concurrently; reload the job")
     db.evento(job_id, f"status:{estado}", json.dumps(campos)[:400], c=c)
 
 
@@ -564,9 +595,9 @@ def fondear(jid: str, _: str = Depends(comprador_actual)):
         job = _job(c, jid)
         if job["state"] != "created":
             raise HTTPException(409, f"cannot fund in status {job['state']}")
-        _cambiar(c, jid, "funded")
-    db.post(jid, [("buyer", "buyer", -job["amount_micros"], "deposit"),
-                  ("escrow", jid, job["amount_micros"], "held in escrow")])
+        _cambiar(c, jid, "funded", esperado="created")
+        db.post(jid, [("buyer", "buyer", -job["amount_micros"], "deposit"),
+                      ("escrow", jid, job["amount_micros"], "held in escrow")], c=c)
     extra = {}
     if chain.activo():
         try:
@@ -597,7 +628,7 @@ def listar(estado: str | None = None, especialidad: str | None = None,
         cond.append("(title LIKE ? OR spec LIKE ? OR specialties LIKE ? OR id LIKE ?)")
         args += [f"%{q}%"] * 4
     consulta += (" WHERE " + " AND ".join(cond)) if cond else ""
-    consulta += " ORDER BY created_at DESC LIMIT ?"; args.append(min(limite, 100))
+    consulta += " ORDER BY created_at DESC LIMIT ?"; args.append(max(1, min(limite, 100)))
     with db.conn() as c:
         filas = [dict(r) for r in c.execute(consulta, args).fetchall()]
     if especialidad:
@@ -618,7 +649,7 @@ def aceptar(jid: str, agente: dict = Depends(agente_actual)):
         pedidas = json.loads(job["specialties"])
         if not set(map(str.lower, especialidades)) & set(map(str.lower, pedidas)):
             raise HTTPException(403, "the agent does not have the requested specialty")
-        _cambiar(c, jid, "accepted", agent_id=agente["id"])
+        _cambiar(c, jid, "accepted", esperado="funded", agent_id=agente["id"])
     db.evento(jid, "accepted", agente["id"])
     return {"id": jid, "estado": "accepted", "agente": agente["id"]}
 
@@ -631,7 +662,7 @@ def entregar(jid: str, e: Entrega, agente: dict = Depends(agente_actual)):
             raise HTTPException(409, f"cannot deliver in status {job['state']}")
         if job["agent_id"] != agente["id"]:
             raise HTTPException(403, "that job is not yours")
-        _cambiar(c, jid, "delivered", artifact=e.artifact, artifact_sha=e.sha256)
+        _cambiar(c, jid, "delivered", esperado="accepted", artifact=e.artifact, artifact_sha=e.sha256)
     db.evento(jid, "delivered", f"sha={validators.sha(e.artifact)[:16]}")
     return {"id": jid, "estado": "delivered", "sha256": validators.sha(e.artifact)}
 
@@ -642,7 +673,7 @@ def validar(jid: str, _: str = Depends(comprador_actual)):
         job = _job(c, jid)
         if job["state"] != "delivered":
             raise HTTPException(409, f"cannot validate in status {job['state']}")
-        _cambiar(c, jid, "validating")
+        _cambiar(c, jid, "validating", esperado="delivered")
     ok, resultados = validators.ejecutar(job["spec"], job["artifact"] or "",
                                          job["artifact_sha"], VALIDAR_MIN)
     with db.conn() as c:
@@ -656,7 +687,8 @@ def validar(jid: str, _: str = Depends(comprador_actual)):
     if not ok:
         # no se libera: vuelve al agente para que corrija
         with db.conn() as c:
-            _cambiar(c, jid, "accepted", rejection=json.dumps(resultados)[:2000])
+            _cambiar(c, jid, "accepted", esperado="validating",
+                     rejection=json.dumps(resultados)[:2000])
         return {"id": jid, "ok": False, "resultados": resultados,
                 "estado": "accepted", "motivo": "failed the checks: fix it and deliver again"}
     return {"id": jid, "ok": True, "resultados": resultados, "estado": "validating",
@@ -674,11 +706,10 @@ def liberar(jid: str, _: str = Depends(comprador_actual)):
             raise HTTPException(409, f"{(DISPUTA_SEG - paso) // 3600} h left in the dispute window")
         fee = comision(job["amount_micros"])
         neto = job["amount_micros"] - fee
-        _cambiar(c, jid, "released")
-    db.post(jid, [("escrow", jid, -job["amount_micros"], "released"),
-                  ("agent", job["agent_id"], neto, "payment to the agent"),
-                  ("fees", "platform", fee, "fee")])
-    with db.conn() as c:
+        _cambiar(c, jid, "released", esperado=("validating", "disputed"))
+        db.post(jid, [("escrow", jid, -job["amount_micros"], "released"),
+                      ("agent", job["agent_id"], neto, "payment to the agent"),
+                      ("fees", "platform", fee, "fee")], c=c)
         c.execute("UPDATE agents SET jobs_done=jobs_done+1, reputation=reputation+1 WHERE id=?",
                   (job["agent_id"],))
     db.evento(jid, "released", f"neto={neto} fee={fee}")
@@ -701,7 +732,8 @@ def disputar(jid: str, motivo: str = "", _: str = Depends(comprador_actual)):
         job = _job(c, jid)
         if job["state"] not in ("validating", "delivered", "accepted"):
             raise HTTPException(409, f"not disputable in status {job['state']}")
-        _cambiar(c, jid, "disputed", rejection=motivo[:500])
+        _cambiar(c, jid, "disputed", esperado=("validating", "delivered", "accepted"),
+                 rejection=motivo[:500])
     db.evento(jid, "disputed", motivo[:200])
     return {"id": jid, "estado": "disputed", "nota": "manual review by a human validator"}
 
@@ -714,9 +746,10 @@ def reembolsar(jid: str, _: str = Depends(comprador_actual)):
             raise HTTPException(409, "the agent has already been paid")
         if job["state"] not in ("funded", "accepted", "delivered", "validating", "disputed"):
             raise HTTPException(409, f"not refundable in status {job['state']}")
-        _cambiar(c, jid, "refunded")
-    db.post(jid, [("escrow", jid, -job["amount_micros"], "refunded"),
-                  ("buyer", "buyer", job["amount_micros"], "refund")])
+        _cambiar(c, jid, "refunded",
+                 esperado=("funded", "accepted", "delivered", "validating", "disputed"))
+        db.post(jid, [("escrow", jid, -job["amount_micros"], "refunded"),
+                      ("buyer", "buyer", job["amount_micros"], "refund")], c=c)
     db.evento(jid, "refunded", "")
     salida = {"id": jid, "estado": "refunded"}
     if chain.activo():
@@ -733,10 +766,10 @@ def ver_trabajo(jid: str):
     with db.conn() as c:
         job = _job(c, jid)
         val = [dict(r) for r in c.execute(
-            "SELECT validator,passed,score,evidence FROM validations WHERE job_id=? ORDER BY id",
+            "SELECT validator,passed,score,evidence FROM validations WHERE job_id=? ORDER BY id LIMIT 200",
             (jid,)).fetchall()]
         ev = [dict(r) for r in c.execute(
-            "SELECT kind,detail,ts FROM events WHERE job_id=? ORDER BY id", (jid,)).fetchall()]
+            "SELECT kind,detail,ts FROM events WHERE job_id=? ORDER BY id LIMIT 200", (jid,)).fetchall()]
     job["amount_usdc"] = job.pop("amount_micros") / 1e6
     job["especialidades"] = json.loads(job.pop("specialties"))
     job.pop("artifact", None)
@@ -753,19 +786,31 @@ def factura(jid: str):
         raise HTTPException(409, "only released jobs can be invoiced")
     fee = comision(job["amount_micros"])
     total = job["amount_micros"]
-    html = f"""<!doctype html><meta charset="utf-8"><title>Invoice {jid}</title>
-<style>body{{font:15px/1.6 system-ui;margin:40px;max-width:640px}}
-table{{width:100%;border-collapse:collapse;margin-top:18px}}
-td,th{{border-bottom:1px solid #ddd;padding:8px;text-align:left}}
-td.n{{text-align:right;font-variant-numeric:tabular-nums}}</style>
-<h2>Invoice {jid}</h2>
-<p>{job['title']}<br>Agent: {job['agent_id']} · Client: {job['buyer_id']}</p>
-<table><tr><th>Item</th><th>Amount</th></tr>
+    titulo = escape(str(job['title'] or ''), quote=True)
+    agente_id = escape(str(job['agent_id'] or ''), quote=True)
+    buyer_id = escape(str(job['buyer_id'] or ''), quote=True)
+    jid_e = escape(str(jid), quote=True)
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice {jid_e}</title>
+<link rel="stylesheet" href="/brand/invoice.css">
+</head>
+<body>
+<h2>Invoice {jid_e}</h2>
+<p>{titulo}<br>Agent: {agente_id} · Client: {buyer_id}</p>
+<table>
+<tr><th>Item</th><th>Amount</th></tr>
 <tr><td>Delivered and validated service</td><td class="n">{total/1e6:.2f} USDC</td></tr>
 <tr><td>Platform fee</td><td class="n">{fee/1e6:.2f} USDC</td></tr>
-<tr><th>Net to agent</th><th class="n">{(total-fee)/1e6:.2f} USDC</th></tr></table>
-<p style="color:#666;font-size:13px">USDC payment. Automatically generated for the
-holder's accounting; it is not a tax invoice.</p>"""
+<tr><th>Net to agent</th><th class="n">{(total-fee)/1e6:.2f} USDC</th></tr>
+</table>
+<p class="note">USDC payment. Automatically generated for the holder's accounting;
+it is not a tax invoice.</p>
+</body>
+</html>"""
     return HTMLResponse(html)
 
 

@@ -32,7 +32,14 @@ def conn():
 
 
 def init():
-    os.makedirs(os.path.dirname(DB), exist_ok=True)
+    carpeta = os.path.dirname(DB)
+    os.makedirs(carpeta, exist_ok=True)
+    # No tocar permisos de directorios ajenos (p. ej. /tmp en CI).
+    if os.path.basename(os.path.normpath(carpeta)) == "data":
+        try:
+            os.chmod(carpeta, 0o700)
+        except OSError:
+            pass
     with conn() as c:
         c.executescript(
             """
@@ -112,6 +119,12 @@ def init():
             );
             CREATE INDEX IF NOT EXISTS threads_agent ON threads(agent_id, updated_at DESC);
             CREATE INDEX IF NOT EXISTS thread_msgs ON thread_messages(thread_id, id);
+            CREATE INDEX IF NOT EXISTS agents_key ON agents(key_hash);
+            CREATE INDEX IF NOT EXISTS jobs_state ON jobs(state, created_at);
+            CREATE INDEX IF NOT EXISTS jobs_agent_idx ON jobs(agent_id);
+            CREATE INDEX IF NOT EXISTS ledger_job ON ledger(job_id);
+            CREATE INDEX IF NOT EXISTS validations_job ON validations(job_id);
+            CREATE INDEX IF NOT EXISTS events_job ON events(job_id);
             """
         )
         # El perfil público del agente (publicitarse) se añadió después:
@@ -126,6 +139,10 @@ def init():
         ):
             if col not in cols:
                 c.execute(f"ALTER TABLE agents ADD COLUMN {col} {ddl}")
+    try:
+        os.chmod(DB, 0o600)
+    except OSError:
+        pass
 
 
 def new_id(pref: str) -> str:
@@ -142,18 +159,25 @@ def make_key() -> tuple[str, str, str]:
     return key, hash_key(key), key[:10]
 
 
-def post(job_id: str, movimientos: list[tuple[str, str | None, int, str]]):
-    """Asienta movimientos (account, party, delta_micros, memo). Deben sumar 0."""
+def post(job_id: str, movimientos: list[tuple[str, str | None, int, str]],
+         c: sqlite3.Connection | None = None):
+    """Asienta movimientos (account, party, delta_micros, memo). Deben sumar 0.
+
+    Si se pasa una conexión, los apuntes entran en la misma transacción que el
+    cambio de estado: o se guardan los dos, o no se guarda ninguno.
+    """
     total = sum(m[2] for m in movimientos)
     if total != 0:
-        raise ValueError(f"el asiento no cuadra: {total}")
-    with conn() as c:
+        raise ValueError(f"entry does not balance: {total}")
+    sql = ("INSERT INTO ledger (job_id, account, party, delta_micros, memo, ts) "
+           "VALUES (?,?,?,?,?,?)")
+    if c is not None:
         for account, party, delta, memo in movimientos:
-            c.execute(
-                "INSERT INTO ledger (job_id, account, party, delta_micros, memo, ts) "
-                "VALUES (?,?,?,?,?,?)",
-                (job_id, account, party, delta, memo, int(time.time())),
-            )
+            c.execute(sql, (job_id, account, party, delta, memo, int(time.time())))
+        return
+    with conn() as cc:
+        for account, party, delta, memo in movimientos:
+            cc.execute(sql, (job_id, account, party, delta, memo, int(time.time())))
 
 
 def saldo(cuenta: str, party: str | None = None) -> int:

@@ -1,0 +1,15 @@
+/* HireAIJob · invoice */
+body {
+  margin: 40px auto;
+  max-width: 660px;
+  padding: 0 20px;
+  color: #111827;
+  background: #fff;
+  font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+h2 { margin: 0 0 .4rem; font-size: 1.5rem; }
+p { margin: .3rem 0; }
+table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+td, th { border-bottom: 1px solid #ddd; padding: 8px; text-align: left; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
+.note { margin-top: 18px; color: #666; font-size: 13px; }
