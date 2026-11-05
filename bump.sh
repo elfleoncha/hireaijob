@@ -7,7 +7,7 @@ VER="$(date +%Y%m%d%H%M%S)"
 python3 - "$VER" <<'PY'
 import pathlib, re, sys
 ver = sys.argv[1]
-for p in ["web/landing/index.html","web/auth/index.html","web/panel/index.html","web/docs/index.html"]:
+for p in ["web/landing/index.html","web/auth/index.html","web/panel/index.html"]:
     f = pathlib.Path(p)
     if not f.exists(): continue
     s = f.read_text()

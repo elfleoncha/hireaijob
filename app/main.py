@@ -1,13 +1,13 @@
-"""AgentPay — escrow para trabajo entre agentes (y humanos) con pago en USDC.
+"""HireAIJob — escrow for work between agents (and humans), paid in USDC.
 
-Flujo:
-  buyer crea trabajo -> fondea (USDC) -> agente acepta -> entrega ->
-  validadores automáticos -> ventana de disputa -> liberación al agente
-  (menos comisión) o reembolso al comprador.
+Flow:
+  buyer creates job -> funds (USDC) -> agent accepts -> delivers ->
+  automatic validators -> dispute window -> release to the agent
+  (minus fee) or refund to the buyer.
 
-El dinero se asienta en un libro de doble entrada: escrow / fees / agent / buyer.
-La liquidación on-chain (USDC en Base) es un paso aparte y explícito: aquí se
-registra la intención y, cuando se firma, se marca el pago como liquidado.
+Money is recorded in a double-entry ledger: escrow / fees / agent / buyer.
+On-chain settlement (USDC on Base) is a separate, explicit step: the intent is
+recorded here and, once signed, the payment is marked as settled.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ import time
 from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
@@ -37,15 +37,15 @@ async def blindaje(request: Request, call_next):
     ruta = request.url.path
     tope = security.RPM if request.method in ("GET", "HEAD") else security.RPM_ESCRITURA
     if not security.limite_ok(ip, tope):
-        return JSONResponse({"detail": "demasiadas peticiones, espera un minuto"}, status_code=429)
+        return JSONResponse({"detail": "too many requests, wait a minute"}, status_code=429)
     largo = request.headers.get("content-length")
     if largo and int(largo) > security.MAX_BODY:
-        return JSONResponse({"detail": "cuerpo demasiado grande"}, status_code=413)
+        return JSONResponse({"detail": "body too large"}, status_code=413)
     cuerpo = b""
     if request.method in ("POST", "PUT", "PATCH"):
         cuerpo = await request.body()          # ya limitado por content-length
         if len(cuerpo) > security.MAX_BODY:
-            return JSONResponse({"detail": "cuerpo demasiado grande"}, status_code=413)
+            return JSONResponse({"detail": "body too large"}, status_code=413)
         request._body = cuerpo
     respuesta = await call_next(request)
     for k, v in security.CABECERAS.items():
@@ -117,7 +117,7 @@ class Agente(BaseModel):
         if v is None or v == "":
             return None
         if not re.fullmatch(r"0x[0-9a-fA-F]{40}", v):
-            raise ValueError("wallet debe ser una dirección 0x + 40 hex")
+            raise ValueError("wallet must be a 0x + 40 hex address")
         return v.lower()
 
     @field_validator("headline", "bio", mode="before")
@@ -142,12 +142,12 @@ class Entrega(BaseModel):
     @classmethod
     def _sin_binario(cls, v):
         if "\x00" in v:
-            raise ValueError("el entregable no puede contener bytes nulos")
+            raise ValueError("deliverable must not contain null bytes")
         return v
 
 
 class Perfil(BaseModel):
-    """Lo que un agente puede publicar de sí mismo para que le contacten."""
+    """What an agent can publish about itself so it can be contacted."""
     name: str | None = Field(default=None, min_length=2, max_length=60)
     headline: str | None = Field(default=None, max_length=140)
     bio: str | None = Field(default=None, max_length=2000)
@@ -172,7 +172,7 @@ class Perfil(BaseModel):
         if v is None or v == "":
             return None
         if not re.fullmatch(r"0x[0-9a-fA-F]{40}", v):
-            raise ValueError("wallet debe ser una dirección 0x + 40 hex")
+            raise ValueError("wallet must be a 0x + 40 hex address")
         return v.lower()
 
 
@@ -200,33 +200,33 @@ class NuevoMensaje(BaseModel):
 # ----------------------------------------------------------------- auth
 def agente_actual(authorization: str | None = Header(default=None)) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "falta la clave del agente")
+        raise HTTPException(401, "missing agent key")
     kh = db.hash_key(authorization.split(" ", 1)[1].strip())
     with db.conn() as c:
         row = c.execute("SELECT * FROM agents WHERE key_hash=?", (kh,)).fetchone()
     if not row:
-        raise HTTPException(401, "clave no válida")
+        raise HTTPException(401, "invalid key")
     return dict(row)
 
 
 class Comprador(BaseModel):
-    """El comprador puede ser humano o agente; aquí basta una clave compartida."""
+    """The buyer can be a human or an agent; a shared key is enough here."""
     key: str
 
 
 def comprador_actual(authorization: str | None = Header(default=None)) -> str:
     buena = os.environ.get("AGENTPAY_BUYER_KEY", "")
     if not authorization or not buena:
-        raise HTTPException(401, "falta la clave de comprador")
+        raise HTTPException(401, "missing buyer key")
     if not secrets.compare_digest(authorization.replace("Bearer ", "").strip(), buena):
-        raise HTTPException(401, "clave de comprador no válida")
+        raise HTTPException(401, "invalid buyer key")
     return "buyer"
 
 
 def lector(authorization: str | None = Header(default=None)) -> dict:
-    """Identifica quién lee/escribe mensajes: el comprador o un agente."""
+    """Identify who reads/writes messages: the buyer or an agent."""
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "falta la clave")
+        raise HTTPException(401, "missing key")
     key = authorization.split(" ", 1)[1].strip()
     buena = os.environ.get("AGENTPAY_BUYER_KEY", "")
     if buena and secrets.compare_digest(key, buena):
@@ -234,7 +234,7 @@ def lector(authorization: str | None = Header(default=None)) -> dict:
     with db.conn() as c:
         row = c.execute("SELECT * FROM agents WHERE key_hash=?", (db.hash_key(key),)).fetchone()
     if not row:
-        raise HTTPException(401, "clave no válida")
+        raise HTTPException(401, "invalid key")
     return {"role": "agent", "agent": dict(row)}
 
 
@@ -247,7 +247,7 @@ async def ya_hecho(request: Request) -> dict | None:
         return security.idempotente(clave, request.url.path,
                                     security.hash_cuerpo(request._body or b""))
     except ValueError:
-        raise HTTPException(409, "Idempotency-Key reutilizada con otro contenido")
+        raise HTTPException(409, "Idempotency-Key reused with a different body")
 
 
 def micros(usdc: float) -> int:
@@ -264,7 +264,7 @@ def comision(amount: int, stake: int = 0) -> int:
 def _job(c, job_id: str) -> dict:
     row = c.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
     if not row:
-        raise HTTPException(404, "trabajo no encontrado")
+        raise HTTPException(404, "job not found")
     return dict(row)
 
 
@@ -274,7 +274,7 @@ def _cambiar(c, job_id: str, estado: str, **campos):
     sets = ", ".join(["state=?", "updated_at=?"] + [f"{k}=?" for k in campos])
     vals = [estado, int(time.time())] + list(campos.values()) + [job_id]
     c.execute(f"UPDATE jobs SET {sets} WHERE id=?", vals)
-    db.evento(job_id, f"estado:{estado}", json.dumps(campos)[:400], c=c)
+    db.evento(job_id, f"status:{estado}", json.dumps(campos)[:400], c=c)
 
 
 # ----------------------------------------------------------------- agentes
@@ -292,16 +292,23 @@ def crear_agente(a: Agente):
             (aid, a.name, json.dumps(a.specialties), kh, pref, a.wallet, now,
              a.headline, a.bio, rate, 1, now),
         )
-    db.evento(None, "agente:alta", f"{aid} {a.name}")
+    db.evento(None, "agent:signup", f"{aid} {a.name}")
     # la clave se enseña UNA vez
-    return {"id": aid, "api_key": key, "nota": "guarda la clave: no se puede recuperar"}
+    return {"id": aid, "api_key": key, "nota": "save the key: it cannot be recovered"}
 
 
 @app.get("/agents")
 def listar_agentes(q: str | None = None, especialidad: str | None = None,
                    disponible: bool | None = None, orden: str = "reputacion",
-                   limite: int = 50, offset: int = 0):
-    """Directorio público de agentes que se publicitan (buscar y contactar)."""
+                   limite: int = 50, offset: int = 0,
+                   specialty: str | None = None, available: bool | None = None,
+                   sort: str | None = None, limit: int | None = None):
+    # English aliases (preferred); Spanish names kept for backwards compatibility.
+    especialidad = especialidad or specialty
+    disponible = disponible if disponible is not None else available
+    orden = sort or orden
+    limite = limit or limite
+    """Public directory of self-promoting agents (search and contact)."""
     cond, args = [], []
     if q:
         like = f"%{q.strip()}%"
@@ -350,7 +357,7 @@ def ver_agente(aid: str):
             "headline,bio,rate_micros,available,profile_updated_at "
             "FROM agents WHERE id=?", (aid,)).fetchone()
     if not row:
-        raise HTTPException(404, "agente no encontrado")
+        raise HTTPException(404, "agent not found")
     d = dict(row)
     d["especialidades"] = json.loads(d.pop("specialties"))
     d["stake_usdc"] = d.pop("stake_micros") / 1_000_000
@@ -362,9 +369,9 @@ def ver_agente(aid: str):
 
 @app.patch("/agents/{aid}")
 def editar_agente(aid: str, p: Perfil, agente: dict = Depends(agente_actual)):
-    """El propio agente edita su escaparate público."""
+    """The agent edits its own public profile."""
     if agente["id"] != aid:
-        raise HTTPException(403, "solo puedes editar tu propio perfil")
+        raise HTTPException(403, "you can only edit your own profile")
     campos, valores = [], []
     if p.name is not None:
         campos.append("name=?"); valores.append(p.name)
@@ -381,19 +388,20 @@ def editar_agente(aid: str, p: Perfil, agente: dict = Depends(agente_actual)):
     if p.available is not None:
         campos.append("available=?"); valores.append(1 if p.available else 0)
     if not campos:
-        raise HTTPException(422, "no hay nada que actualizar")
+        raise HTTPException(422, "nothing to update")
     campos.append("profile_updated_at=?"); valores.append(int(time.time()))
     with db.conn() as c:
         c.execute(f"UPDATE agents SET {', '.join(campos)} WHERE id=?", valores + [aid])
-    db.evento(None, "agente:perfil", aid)
+    db.evento(None, "agent:profile", aid)
     return ver_agente(aid)
 
 
 @app.get("/agents/{aid}/jobs")
-def trabajos_de_agente(aid: str, limite: int = 20):
+def trabajos_de_agente(aid: str, limite: int = 20, limit: int | None = None):
+    limite = limit or limite
     with db.conn() as c:
         if not c.execute("SELECT 1 FROM agents WHERE id=?", (aid,)).fetchone():
-            raise HTTPException(404, "agente no encontrado")
+            raise HTTPException(404, "agent not found")
         filas = [dict(r) for r in c.execute(
             "SELECT id,title,amount_micros,state,created_at FROM jobs WHERE agent_id=? "
             "ORDER BY created_at DESC LIMIT ?", (aid, max(1, min(limite, 100))))]
@@ -411,7 +419,7 @@ def trabajos_de_agente(aid: str, limite: int = 20):
 def _hilo(c, tid: str) -> dict:
     row = c.execute("SELECT * FROM threads WHERE id=?", (tid,)).fetchone()
     if not row:
-        raise HTTPException(404, "conversación no encontrada")
+        raise HTTPException(404, "conversation not found")
     return dict(row)
 
 
@@ -424,17 +432,17 @@ def abrir_hilo(d: NuevoHilo, quien: dict = Depends(lector)):
     with db.conn() as c:
         ag = c.execute("SELECT id,name FROM agents WHERE id=?", (d.agent_id,)).fetchone()
         if not ag:
-            raise HTTPException(404, "agente no encontrado")
+            raise HTTPException(404, "agent not found")
         job_id = None
         if d.job_id:
             job = c.execute("SELECT id,agent_id FROM jobs WHERE id=?", (d.job_id,)).fetchone()
             if not job:
-                raise HTTPException(404, "trabajo no encontrado")
+                raise HTTPException(404, "job not found")
             if job["agent_id"] and job["agent_id"] != d.agent_id:
-                raise HTTPException(409, "ese trabajo no pertenece a este agente")
+                raise HTTPException(409, "that job does not belong to this agent")
             job_id = job["id"]
         if quien["role"] == "agent" and quien["agent"]["id"] != d.agent_id:
-            raise HTTPException(403, "un agente solo puede escribir desde su propio perfil")
+            raise HTTPException(403, "an agent can only write from its own profile")
         now = int(time.time())
         tid = db.new_id("thr")
         c.execute(
@@ -445,7 +453,7 @@ def abrir_hilo(d: NuevoHilo, quien: dict = Depends(lector)):
              now if quien["role"] == "agent" else 0))
         c.execute("INSERT INTO thread_messages (thread_id,sender,body,ts) VALUES (?,?,?,?)",
                   (tid, quien["role"], d.message, now))
-    db.evento(job_id, "mensaje:abierto", f"{tid} {quien['role']}")
+    db.evento(job_id, "message:opened", f"{tid} {quien['role']}")
     return {"id": tid, "estado": "abierto"}
 
 
@@ -493,7 +501,7 @@ def ver_hilo(tid: str, quien: dict = Depends(lector)):
     with db.conn() as c:
         hilo = _hilo(c, tid)
         if not _puede_ver(hilo, quien):
-            raise HTTPException(403, "esta conversación no es tuya")
+            raise HTTPException(403, "this conversation is not yours")
         col = "agent_read_ts" if rol == "agent" else "buyer_read_ts"
         c.execute(f"UPDATE threads SET {col}=? WHERE id=?", (int(time.time()), tid))
         mensajes = [dict(r) for r in c.execute(
@@ -515,13 +523,13 @@ def responder(tid: str, d: NuevoMensaje, quien: dict = Depends(lector)):
     with db.conn() as c:
         hilo = _hilo(c, tid)
         if not _puede_ver(hilo, quien):
-            raise HTTPException(403, "esta conversación no es tuya")
+            raise HTTPException(403, "this conversation is not yours")
         now = int(time.time())
         c.execute("INSERT INTO thread_messages (thread_id,sender,body,ts) VALUES (?,?,?,?)",
                   (tid, rol, d.body, now))
         col = "agent_read_ts" if rol == "agent" else "buyer_read_ts"
         c.execute(f"UPDATE threads SET updated_at=?, {col}=? WHERE id=?", (now, now, tid))
-    db.evento(hilo["job_id"], "mensaje", f"{tid} {rol}")
+    db.evento(hilo["job_id"], "message", f"{tid} {rol}")
     return {"ok": True, "ts": now}
 
 
@@ -537,7 +545,7 @@ def crear_trabajo(t: Trabajo, _: str = Depends(comprador_actual)):
             (jid, t.title, t.spec, json.dumps(t.specialties), micros(t.amount_usdc), "created",
              "buyer", now, now, now + t.deadline_hours * 3600 if t.deadline_hours else None),
         )
-    db.evento(jid, "creado", t.title)
+    db.evento(jid, "created", t.title)
     return {"id": jid, "amount_usdc": t.amount_usdc, "estado": "created"}
 
 
@@ -548,10 +556,10 @@ def fondear(jid: str, _: str = Depends(comprador_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] != "created":
-            raise HTTPException(409, f"no se puede fondear en estado {job['state']}")
+            raise HTTPException(409, f"cannot fund in status {job['state']}")
         _cambiar(c, jid, "funded")
-    db.post(jid, [("buyer", "buyer", -job["amount_micros"], "depósito"),
-                  ("escrow", jid, job["amount_micros"], "retenido en escrow")])
+    db.post(jid, [("buyer", "buyer", -job["amount_micros"], "deposit"),
+                  ("escrow", jid, job["amount_micros"], "held in escrow")])
     extra = {}
     if chain.activo():
         try:
@@ -566,7 +574,13 @@ def fondear(jid: str, _: str = Depends(comprador_actual)):
 
 @app.get("/jobs")
 def listar(estado: str | None = None, especialidad: str | None = None,
-           q: str | None = None, limite: int = 20):
+           q: str | None = None, limite: int = 20,
+           status: str | None = None, specialty: str | None = None,
+           limit: int | None = None):
+    # English aliases (preferred); Spanish names kept for backwards compatibility.
+    estado = estado or status
+    especialidad = especialidad or specialty
+    limite = limit or limite
     q = (q or "").strip()[:120]
     consulta = "SELECT id,title,specialties,amount_micros,state,created_at FROM jobs"
     cond, args = [], []
@@ -593,12 +607,12 @@ def aceptar(jid: str, agente: dict = Depends(agente_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] != "funded":
-            raise HTTPException(409, f"no aceptable en estado {job['state']}")
+            raise HTTPException(409, f"not acceptable in status {job['state']}")
         pedidas = json.loads(job["specialties"])
         if not set(map(str.lower, especialidades)) & set(map(str.lower, pedidas)):
-            raise HTTPException(403, "el agente no tiene la especialidad pedida")
+            raise HTTPException(403, "the agent does not have the requested specialty")
         _cambiar(c, jid, "accepted", agent_id=agente["id"])
-    db.evento(jid, "aceptado", agente["id"])
+    db.evento(jid, "accepted", agente["id"])
     return {"id": jid, "estado": "accepted", "agente": agente["id"]}
 
 
@@ -607,11 +621,11 @@ def entregar(jid: str, e: Entrega, agente: dict = Depends(agente_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] != "accepted":
-            raise HTTPException(409, f"no se puede entregar en estado {job['state']}")
+            raise HTTPException(409, f"cannot deliver in status {job['state']}")
         if job["agent_id"] != agente["id"]:
-            raise HTTPException(403, "ese trabajo no es tuyo")
+            raise HTTPException(403, "that job is not yours")
         _cambiar(c, jid, "delivered", artifact=e.artifact, artifact_sha=e.sha256)
-    db.evento(jid, "entregado", f"sha={validators.sha(e.artifact)[:16]}")
+    db.evento(jid, "delivered", f"sha={validators.sha(e.artifact)[:16]}")
     return {"id": jid, "estado": "delivered", "sha256": validators.sha(e.artifact)}
 
 
@@ -620,7 +634,7 @@ def validar(jid: str, _: str = Depends(comprador_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] != "delivered":
-            raise HTTPException(409, f"no se puede validar en estado {job['state']}")
+            raise HTTPException(409, f"cannot validate in status {job['state']}")
         _cambiar(c, jid, "validating")
     ok, resultados = validators.ejecutar(job["spec"], job["artifact"] or "",
                                          job["artifact_sha"], VALIDAR_MIN)
@@ -630,14 +644,14 @@ def validar(jid: str, _: str = Depends(comprador_actual)):
                       "VALUES (?,?,?,?,?,?)",
                       (jid, r["validator"], int(r["passed"]), r["score"], r["evidence"],
                        int(time.time())))
-    db.evento(jid, "validado", json.dumps({"ok": ok, "fallos":
+    db.evento(jid, "validated", json.dumps({"ok": ok, "fallos":
                                            [r["validator"] for r in resultados if not r["passed"]]}))
     if not ok:
         # no se libera: vuelve al agente para que corrija
         with db.conn() as c:
             _cambiar(c, jid, "accepted", rejection=json.dumps(resultados)[:2000])
         return {"id": jid, "ok": False, "resultados": resultados,
-                "estado": "accepted", "motivo": "no pasa los filtros: corrige y vuelve a entregar"}
+                "estado": "accepted", "motivo": "failed the checks: fix it and deliver again"}
     return {"id": jid, "ok": True, "resultados": resultados, "estado": "validating",
             "ventana_disputa_horas": DISPUTA_SEG // 3600}
 
@@ -647,26 +661,26 @@ def liberar(jid: str, _: str = Depends(comprador_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] not in ("validating", "disputed"):
-            raise HTTPException(409, f"no liberable en estado {job['state']}")
+            raise HTTPException(409, f"not releasable in status {job['state']}")
         paso = int(time.time()) - (job["updated_at"] or 0)
         if job["state"] == "validating" and paso < DISPUTA_SEG:
-            raise HTTPException(409, f"faltan {(DISPUTA_SEG - paso) // 3600} h de ventana de disputa")
+            raise HTTPException(409, f"{(DISPUTA_SEG - paso) // 3600} h left in the dispute window")
         fee = comision(job["amount_micros"])
         neto = job["amount_micros"] - fee
         _cambiar(c, jid, "released")
-    db.post(jid, [("escrow", jid, -job["amount_micros"], "liberado"),
-                  ("agent", job["agent_id"], neto, "pago al agente"),
-                  ("fees", "platform", fee, "comisión")])
+    db.post(jid, [("escrow", jid, -job["amount_micros"], "released"),
+                  ("agent", job["agent_id"], neto, "payment to the agent"),
+                  ("fees", "platform", fee, "fee")])
     with db.conn() as c:
         c.execute("UPDATE agents SET jobs_done=jobs_done+1, reputation=reputation+1 WHERE id=?",
                   (job["agent_id"],))
-    db.evento(jid, "liberado", f"neto={neto} fee={fee}")
+    db.evento(jid, "released", f"neto={neto} fee={fee}")
     salida = {"id": jid, "estado": "released", "neto_usdc": neto / 1e6,
-              "fee_usdc": fee / 1e6, "liquidacion": "pendiente de firmar (USDC en Base)"}
+              "fee_usdc": fee / 1e6, "liquidacion": "pending signature (USDC on Base)"}
     if chain.activo():
         try:
             salida["onchain"] = chain.liberar(jid)
-            salida["liquidacion"] = "liquidado on-chain"
+            salida["liquidacion"] = "settled on-chain"
             db.evento(jid, "onchain:release", json.dumps(salida["onchain"])[:400])
         except Exception as e:
             db.evento(jid, "onchain:error", repr(e)[:300])
@@ -679,10 +693,10 @@ def disputar(jid: str, motivo: str = "", _: str = Depends(comprador_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] not in ("validating", "delivered", "accepted"):
-            raise HTTPException(409, f"no disputable en estado {job['state']}")
+            raise HTTPException(409, f"not disputable in status {job['state']}")
         _cambiar(c, jid, "disputed", rejection=motivo[:500])
-    db.evento(jid, "disputa", motivo[:200])
-    return {"id": jid, "estado": "disputed", "nota": "revisión manual del validador humano"}
+    db.evento(jid, "disputed", motivo[:200])
+    return {"id": jid, "estado": "disputed", "nota": "manual review by a human validator"}
 
 
 @app.post("/jobs/{jid}/refund")
@@ -690,13 +704,13 @@ def reembolsar(jid: str, _: str = Depends(comprador_actual)):
     with db.conn() as c:
         job = _job(c, jid)
         if job["state"] == "released":
-            raise HTTPException(409, "ya se pagó al agente")
+            raise HTTPException(409, "the agent has already been paid")
         if job["state"] not in ("funded", "accepted", "delivered", "validating", "disputed"):
-            raise HTTPException(409, f"no reembolsable en estado {job['state']}")
+            raise HTTPException(409, f"not refundable in status {job['state']}")
         _cambiar(c, jid, "refunded")
-    db.post(jid, [("escrow", jid, -job["amount_micros"], "devuelto"),
-                  ("buyer", "buyer", job["amount_micros"], "reembolso")])
-    db.evento(jid, "reembolsado", "")
+    db.post(jid, [("escrow", jid, -job["amount_micros"], "refunded"),
+                  ("buyer", "buyer", job["amount_micros"], "refund")])
+    db.evento(jid, "refunded", "")
     salida = {"id": jid, "estado": "refunded"}
     if chain.activo():
         try:
@@ -729,35 +743,35 @@ def factura(jid: str):
     with db.conn() as c:
         job = _job(c, jid)
     if job["state"] != "released":
-        raise HTTPException(409, "solo se factura lo liberado")
+        raise HTTPException(409, "only released jobs can be invoiced")
     fee = comision(job["amount_micros"])
     total = job["amount_micros"]
-    html = f"""<!doctype html><meta charset="utf-8"><title>Factura {jid}</title>
+    html = f"""<!doctype html><meta charset="utf-8"><title>Invoice {jid}</title>
 <style>body{{font:15px/1.6 system-ui;margin:40px;max-width:640px}}
 table{{width:100%;border-collapse:collapse;margin-top:18px}}
 td,th{{border-bottom:1px solid #ddd;padding:8px;text-align:left}}
 td.n{{text-align:right;font-variant-numeric:tabular-nums}}</style>
-<h2>Factura {jid}</h2>
-<p>{job['title']}<br>Agente: {job['agent_id']} · Cliente: {job['buyer_id']}</p>
-<table><tr><th>Concepto</th><th>Importe</th></tr>
-<tr><td>Servicio entregado y validado</td><td class="n">{total/1e6:.2f} USDC</td></tr>
-<tr><td>Comisión de plataforma</td><td class="n">{fee/1e6:.2f} USDC</td></tr>
-<tr><th>Neto al agente</th><th class="n">{(total-fee)/1e6:.2f} USDC</th></tr></table>
-<p style="color:#666;font-size:13px">Pago en USDC. Documento generado automáticamente
-para la contabilidad del titular; no sustituye a una factura fiscal.</p>"""
+<h2>Invoice {jid}</h2>
+<p>{job['title']}<br>Agent: {job['agent_id']} · Client: {job['buyer_id']}</p>
+<table><tr><th>Item</th><th>Amount</th></tr>
+<tr><td>Delivered and validated service</td><td class="n">{total/1e6:.2f} USDC</td></tr>
+<tr><td>Platform fee</td><td class="n">{fee/1e6:.2f} USDC</td></tr>
+<tr><th>Net to agent</th><th class="n">{(total-fee)/1e6:.2f} USDC</th></tr></table>
+<p style="color:#666;font-size:13px">USDC payment. Automatically generated for the
+holder's accounting; it is not a tax invoice.</p>"""
     return HTMLResponse(html)
 
 
 @app.get("/chain")
 def estado_cadena():
     if not chain.activo():
-        return {"onchain": False, "nota": "activa AGENTPAY_ONCHAIN=1"}
+        return {"onchain": False, "nota": "set AGENTPAY_ONCHAIN=1"}
     return {"onchain": True, **chain.listo()}
 
 
 @app.get("/security/invariants")
 def invariantes():
-    """El libro mayor tiene que cuadrar trabajo a trabajo. Si esto falla, algo se tocó."""
+    """The ledger must balance job by job. If this fails, something was changed by hand."""
     problemas = []
     with db.conn() as c:
         jobs = [dict(r) for r in c.execute("SELECT id,state,amount_micros,agent_id FROM jobs")]
@@ -765,18 +779,18 @@ def invariantes():
             suma = c.execute("SELECT COALESCE(SUM(delta_micros),0) s FROM ledger WHERE job_id=?",
                              (j["id"],)).fetchone()["s"]
             if suma != 0:
-                problemas.append(f"{j['id']}: asientos no cuadran ({suma})")
+                problemas.append(f"{j['id']}: entries do not balance ({suma})")
             esc = c.execute("SELECT COALESCE(SUM(delta_micros),0) s FROM ledger "
                             "WHERE job_id=? AND account='escrow'", (j["id"],)).fetchone()["s"]
             if esc < 0:
-                problemas.append(f"{j['id']}: escrow negativo")
+                problemas.append(f"{j['id']}: negative escrow")
             if j["state"] == "released":
                 ag = c.execute("SELECT COALESCE(SUM(delta_micros),0) s FROM ledger "
                                "WHERE job_id=? AND account='agent'", (j["id"],)).fetchone()["s"]
                 fee = c.execute("SELECT COALESCE(SUM(delta_micros),0) s FROM ledger "
                                 "WHERE job_id=? AND account='fees'", (j["id"],)).fetchone()["s"]
                 if ag + fee != j["amount_micros"]:
-                    problemas.append(f"{j['id']}: liberado no reparte el importe")
+                    problemas.append(f"{j['id']}: released job does not distribute the amount")
     return {"ok": not problemas, "problemas": problemas,
             "escrow_usdc": db.saldo("escrow") / 1e6, "fees_usdc": db.saldo("fees") / 1e6}
 
@@ -818,9 +832,14 @@ def skill_md():
 
 
 # --- páginas server-side para buscadores y agentes (sin JS) ----------------
-@app.get("/para-agentes", response_class=HTMLResponse)
+@app.get("/for-agents", response_class=HTMLResponse)
 def pagina_para_agentes():
     return seo.para_agentes()
+
+
+@app.get("/para-agentes", include_in_schema=False)
+def redir_para_agentes():
+    return RedirectResponse("/for-agents", status_code=301)
 
 
 @app.get("/faq", response_class=HTMLResponse)
@@ -828,14 +847,36 @@ def pagina_faq():
     return seo.faq()
 
 
-@app.get("/trabajos", response_class=HTMLResponse)
+@app.get("/market", response_class=HTMLResponse)
 def pagina_trabajos():
     return seo.trabajos()
 
 
-@app.get("/trabajos/{jid}", response_class=HTMLResponse)
+@app.get("/market/{jid}", response_class=HTMLResponse)
 def pagina_trabajo(jid: str):
     return seo.trabajo(jid)
+
+
+@app.get("/trabajos", include_in_schema=False)
+def redir_trabajos():
+    return RedirectResponse("/market", status_code=301)
+
+
+@app.get("/trabajos/{jid}", include_in_schema=False)
+def redir_trabajo(jid: str):
+    return RedirectResponse(f"/market/{jid}", status_code=301)
+
+
+@app.get("/docs", include_in_schema=False)
+@app.get("/docs/", include_in_schema=False)
+def redir_docs():
+    return RedirectResponse("/api/docs", status_code=302)
+
+
+@app.get("/auth-in", include_in_schema=False)
+@app.get("/auth-in/", include_in_schema=False)
+def redir_auth():
+    return RedirectResponse("/panel/", status_code=302)
 
 
 @app.get("/.well-known/agent.json")
@@ -862,6 +903,6 @@ def sitemap():
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 app.mount("/brand", StaticFiles(directory=str(RAIZ / "web" / "shared")), name="brand")
 
-for ruta, carpeta in (("/auth-in", "auth"), ("/panel", "panel"), ("/docs", "docs"), ("/", "landing")):
+for ruta, carpeta in (("/panel", "panel"), ("/", "landing")):
     app.mount(ruta, StaticFiles(directory=str(RAIZ / "web" / carpeta), html=True),
               name=carpeta)

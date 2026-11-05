@@ -1,4 +1,4 @@
-"""Cuentas, sesiones y bloqueo de abusos.
+"""Accounts, sessions and abuse blocking.
 
 Idea de fondo: un baneo por IP no sirve (móvil, CGNAT, VPN). Lo que de verdad
 estorba a un estafador reincidente es una **credencial ligada al dispositivo**
@@ -169,7 +169,7 @@ def _clave_intentos(ip: str, email: str) -> str:
 
 
 def _intentos_ok(ip: str, email: str) -> bool:
-    """Solo se cuentan los fallos: acertar la contraseña no gasta cuota."""
+    """Only failures are counted: a correct password does not use quota."""
     ahora = int(time.time())
     with db.conn() as c:
         c.execute("DELETE FROM intentos WHERE ts < ?", (ahora - VENTANA_INTENTOS,))
@@ -196,9 +196,9 @@ class Registro(BaseModel):
     def _email(cls, v):
         v = v.strip().lower()
         if not EMAIL_OK.match(v):
-            raise ValueError("correo no válido")
+            raise ValueError("invalid email")
         if v.split("@", 1)[1] in DESECHABLES:
-            raise ValueError("no se admiten correos temporales")
+            raise ValueError("temporary email addresses are not allowed")
         return v
 
 
@@ -210,16 +210,16 @@ class Acceso(BaseModel):
 def _usuario(request: Request) -> dict:
     tok = request.cookies.get(COOKIE_SESION)
     if not tok:
-        raise HTTPException(401, "no hay sesión")
+        raise HTTPException(401, "no session")
     th = _h(tok)
     with db.conn() as c:
         row = c.execute(
             "SELECT s.user_id, s.revocada, u.* FROM sessions s JOIN users u ON u.id=s.user_id "
             "WHERE s.token_hash=?", (th,)).fetchone()
         if not row or row["revocada"]:
-            raise HTTPException(401, "sesión no válida")
+            raise HTTPException(401, "invalid session")
         if row["estado"] != "activa":
-            raise HTTPException(423, f"cuenta {row['estado']}")
+            raise HTTPException(423, f"account {row['estado']}")
         c.execute("UPDATE sessions SET visto=? WHERE token_hash=?", (int(time.time()), th))
     return dict(row)
 
@@ -240,15 +240,15 @@ def _poner_cookies(resp: Response, request: Request, token: str, did: str):
 def registro(datos: Registro, request: Request, response: Response):
     motivo = bloqueo_actual(request, datos.email)
     if motivo:
-        raise HTTPException(423, f"no se puede crear la cuenta: {motivo}")
+        raise HTTPException(423, f"cannot create the account: {motivo}")
     with db.conn() as c:
         n = c.execute("SELECT COUNT(*) n FROM users WHERE ultimo_ip=? AND creado > ?",
                       (_ip(request), int(time.time()) - 86400)).fetchone()["n"]
         if n >= 3:
-            _evento(None, "registro:frenado", f"ip con {n} cuentas en 24 h")
-            raise HTTPException(429, "demasiadas cuentas desde esta conexión; revisión manual")
+            _evento(None, "register:blocked", f"ip with {n} accounts in 24 h")
+            raise HTTPException(429, "too many accounts from this connection; manual review")
         if c.execute("SELECT 1 FROM users WHERE email=?", (datos.email,)).fetchone():
-            raise HTTPException(409, "ese correo ya está registrado")
+            raise HTTPException(409, "that email is already registered")
         uid = db.new_id("usr")
         did = db.new_id("dev")
         c.execute(
@@ -257,13 +257,13 @@ def registro(datos: Registro, request: Request, response: Response):
             (uid, datos.email, _h(datos.email), datos.name, datos.role,
              hash_password(datos.password), int(time.time()), _ip(request)))
         c.execute("INSERT INTO devices (id,user_id,etiqueta,creado) VALUES (?,?,?,?)",
-                  (did, uid, "primer dispositivo", int(time.time())))
+                  (did, uid, "first device", int(time.time())))
         token = secrets.token_urlsafe(32)
         c.execute("INSERT INTO sessions (token_hash,user_id,creada,visto,ip,ua_hash) "
                   "VALUES (?,?,?,?,?,?)",
                   (_h(token), uid, int(time.time()), int(time.time()), _ip(request),
                    _h(request.headers.get("user-agent", ""))[:32]))
-    _evento(uid, "registro", f"rol={datos.role}")
+    _evento(uid, "register", f"rol={datos.role}")
     _poner_cookies(response, request, token, did)
     return {"ok": True, "user_id": uid, "device_id": did}
 
@@ -277,14 +277,14 @@ def acceso(datos: Acceso, request: Request, response: Response):
     with db.conn() as c:
         u = c.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
     if u and u["estado"] != "activa":
-        raise HTTPException(423, f"cuenta {u['estado']}")
+        raise HTTPException(423, f"account {u['estado']}")
     if not _intentos_ok(_ip(request), email):
         _evento(u["id"] if u else None, "login:frenado", email)
-        raise HTTPException(429, "demasiados intentos; espera unos minutos")
+        raise HTTPException(429, "too many attempts; wait a few minutes")
     if not u or not verificar_password(datos.password, u["pass_hash"]):
         _apuntar_fallo(_ip(request), email)
         _evento(u["id"] if u else None, "login:fallo", email)
-        raise HTTPException(401, "correo o contraseña incorrectos")
+        raise HTTPException(401, "wrong email or password")
     did = leer_dispositivo(request.cookies.get(COOKIE_DISPOSITIVO)) or db.new_id("dev")
     token = secrets.token_urlsafe(32)
     with db.conn() as c:
@@ -293,7 +293,7 @@ def acceso(datos: Acceso, request: Request, response: Response):
                   (_h(token), u["id"], int(time.time()), int(time.time()), _ip(request),
                    _h(request.headers.get("user-agent", ""))[:32]))
         c.execute("INSERT OR IGNORE INTO devices (id,user_id,etiqueta,creado) VALUES (?,?,?,?)",
-                  (did, u["id"], "dispositivo", int(time.time())))
+                  (did, u["id"], "device", int(time.time())))
         c.execute("UPDATE users SET ultimo_ip=? WHERE id=?", (_ip(request), u["id"]))
     _evento(u["id"], "login:ok", _ip(request))
     _poner_cookies(response, request, token, did)
@@ -315,12 +315,12 @@ def salir(request: Request, response: Response):
 def yo(request: Request):
     u = _usuario(request)
     did = leer_dispositivo(request.cookies.get(COOKIE_DISPOSITIVO))
-    confianza = "desconocido"
+    confianza = "unknown"
     if did:
         with db.conn() as c:
             d = c.execute("SELECT cred_id, revocado FROM devices WHERE id=?", (did,)).fetchone()
         if d:
-            confianza = "passkey" if d["cred_id"] and not d["revocado"] else "dispositivo"
+            confianza = "passkey" if d["cred_id"] and not d["revocado"] else "device"
     return {"user_id": u["id"], "email": u["email"], "name": u["name"], "role": u["role"],
             "estado": u["estado"], "device_trust": confianza}
 
@@ -344,10 +344,10 @@ def revocar(did: str, request: Request):
     with db.conn() as c:
         d = c.execute("SELECT * FROM devices WHERE id=? AND user_id=?", (did, u["id"])).fetchone()
         if not d:
-            raise HTTPException(404, "dispositivo no encontrado")
+            raise HTTPException(404, "device not found")
         c.execute("UPDATE devices SET revocado=1 WHERE id=?", (did,))
         c.execute("INSERT INTO bans (kind,valor,motivo,ts) VALUES ('device',?,?,?)",
-                  (did, "dispositivo revocado por el usuario", int(time.time())))
+                  (did, "device revoked by the user", int(time.time())))
     _evento(u["id"], "device:revocado", did)
     return {"ok": True}
 
@@ -373,7 +373,7 @@ def passkey_opciones(request: Request):
 
 @router.post("/passkey/verify")
 async def passkey_verificar(request: Request):
-    """Verifica la creación de la passkey y la vincula al dispositivo actual."""
+    """Verify passkey creation and bind it to the current device."""
     import base64
     import webauthn
     from webauthn.helpers import parse_registration_credential_json
@@ -386,7 +386,7 @@ async def passkey_verificar(request: Request):
             credential=credencial, expected_challenge=reto,
             expected_origin=ORIGEN, expected_rp_id=RP_ID)
     except Exception as e:
-        raise HTTPException(400, f"passkey no válida: {str(e)[:120]}")
+        raise HTTPException(400, f"invalid passkey: {str(e)[:120]}")
     did = leer_dispositivo(request.cookies.get(COOKIE_DISPOSITIVO))
     with db.conn() as c:
         if did:
@@ -404,14 +404,14 @@ def banear(datos: dict, request: Request,
     buena = os.environ.get("AGENTPAY_ADMIN_KEY", "")
     if not buena or not autorizacion or not hmac.compare_digest(
             autorizacion.replace("Bearer ", ""), buena):
-        raise HTTPException(403, "solo administración")
+        raise HTTPException(403, "admin only")
     kind = datos.get("kind")
     if kind not in ("user", "email", "ip", "device", "wallet"):
-        raise HTTPException(422, "kind debe ser user/email/ip/device/wallet")
+        raise HTTPException(422, "kind must be user/email/ip/device/wallet")
     valor = str(datos.get("valor", "")).strip()
     motivo = str(datos.get("motivo", "incumplimiento"))[:200]
     if not valor:
-        raise HTTPException(422, "falta el valor")
+        raise HTTPException(422, "missing value")
     if kind == "email":
         valor = _h(valor.lower())
     if kind == "user":
@@ -430,7 +430,7 @@ def revision(request: Request, autorizacion: str | None = Header(default=None, a
     buena = os.environ.get("AGENTPAY_ADMIN_KEY", "")
     if not buena or not autorizacion or not hmac.compare_digest(
             autorizacion.replace("Bearer ", ""), buena):
-        raise HTTPException(403, "solo administración")
+        raise HTTPException(403, "admin only")
     with db.conn() as c:
         u = [dict(r) for r in c.execute(
             "SELECT id,email,name,role,estado,creado,ultimo_ip,riesgo FROM users "

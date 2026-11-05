@@ -36,7 +36,7 @@ def limite_ok(ip: str, tope: int) -> bool:
 
 
 def limpiar():
-    """Se llama desde el middleware de vez en cuando para no crecer sin fin."""
+    """Called from the middleware occasionally so it does not grow forever."""
     ahora = time.time()
     for ip in list(_ventanas):
         v = _ventanas[ip]
@@ -80,7 +80,7 @@ def idempotente(clave: str, ruta: str, cuerpo_hash: str) -> dict | None:
     if not hit:
         return None
     if hit["ruta"] != ruta or hit["hash"] != cuerpo_hash:
-        raise ValueError("Idempotency-Key reutilizada con otro contenido")
+        raise ValueError("Idempotency-Key reused with a different body")
     return hit["respuesta"]
 
 

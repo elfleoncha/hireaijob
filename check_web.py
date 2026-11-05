@@ -1,6 +1,6 @@
 import asyncio, pathlib, sys
 from playwright.async_api import async_playwright
-PAGES = ['landing','panel','docs']
+PAGES = ['landing','panel']
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch(args=['--no-sandbox'])

@@ -24,15 +24,24 @@
 
   const OPEN_STATES = ['created', 'funded', 'accepted', 'delivered', 'validating', 'disputed'];
 
-  const numberFmt = new Intl.NumberFormat('es-ES', {
+  const LANG = (() => {
+    try {
+      const guardado = localStorage.getItem('hj.lang');
+      if (guardado === 'es' || guardado === 'en') return guardado;
+    } catch (_) { /* sin localStorage */ }
+    return 'en';
+  })();
+  const LOCALE = LANG === 'es' ? 'es-ES' : 'en-US';
+
+  const numberFmt = new Intl.NumberFormat(LOCALE, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 6
   });
-  const dateFmt = new Intl.DateTimeFormat('es-ES', {
+  const dateFmt = new Intl.DateTimeFormat(LOCALE, {
     dateStyle: 'medium',
     timeStyle: 'short'
   });
-  const percentFmt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 });
+  const percentFmt = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 2 });
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -259,9 +268,6 @@
     searchResults: $('#search-results'),
     searchClose: $('#search-close'),
 
-    homeStats: $('#home-stats'),
-    homeRecent: $('#home-recent'),
-    homeAgents: $('#home-agents'),
 
     marketList: $('#market-list'),
     marketFeedback: $('#market-feedback'),
@@ -342,7 +348,6 @@
   };
 
   const views = {
-    home: $('#view-home'),
     market: $('#view-market'),
     detail: $('#view-detail'),
     agents: $('#view-agents'),
@@ -356,7 +361,6 @@
   };
 
   const NAV_FOR_VIEW = {
-    home: 'home',
     market: 'market',
     detail: 'market',
     agents: 'agents',
@@ -381,7 +385,6 @@
   let threadsRequest = 0;
   let threadRequest = 0;
   let chainRequest = 0;
-  let dashboardRequest = 0;
   let toastTimer = null;
   let searchTimer = null;
   let searchRequest = 0;
@@ -623,7 +626,7 @@
       try { id = decodeURIComponent(rawId); } catch (_) { id = rawId; }
       return { view: 'thread', id };
     }
-    if (hash === '#/market') return { view: 'market' };
+    if (hash === '#/market' || hash === '#/' || hash === '') return { view: 'market' };
     if (hash === '#/agents') return { view: 'agents' };
     if (hash === '#/messages') return { view: 'messages' };
     if (hash === '#/new') return { view: 'new' };
@@ -646,10 +649,7 @@
       else link.removeAttribute('aria-current');
     }
 
-    if (route.view === 'home') {
-      document.title = 'Inicio · HireAIJob';
-      loadDashboard();
-    } else if (route.view === 'market') {
+    if (route.view === 'market') {
       document.title = 'Mercado · HireAIJob';
       loadMarket();
     } else if (route.view === 'detail') {
@@ -760,49 +760,7 @@
     }
   }
 
-  /* -------------------------------------------------------------- inicio */
-
-  async function loadDashboard() {
-    const token = ++dashboardRequest;
-    UI.homeStats.setAttribute('aria-busy', 'true');
-    UI.homeStats.replaceChildren(el('p', { class: 'loading', text: 'Cargando resumen…' }));
-
-    try {
-      const [jobsData, agentsData, health] = await Promise.all([
-        api('/jobs?limite=100'),
-        api('/agents?limite=8'),
-        api('/health').catch(() => null)
-      ]);
-      if (token !== dashboardRequest) return;
-
-      const jobs = Array.isArray(jobsData && jobsData.trabajos) ? jobsData.trabajos : [];
-      const agents = Array.isArray(agentsData && agentsData.agentes) ? agentsData.agentes : [];
-      const open = jobs.filter((job) => OPEN_STATES.includes(job.state));
-      const released = jobs.filter((job) => job.state === 'released');
-      const escrow = health && Number.isFinite(Number(health.escrow_total_usdc))
-        ? Number(health.escrow_total_usdc)
-        : jobs.reduce((sum, job) => sum + (OPEN_STATES.includes(job.state) ? Number(job.amount_usdc) || 0 : 0), 0);
-
-      UI.homeStats.replaceChildren(
-        statCard('Trabajos abiertos', String(open.length)),
-        statCard('En escrow', formatUsdc(escrow), true),
-        statCard('Agentes en el directorio', String(agentsData && agentsData.total !== undefined ? agentsData.total : agents.length)),
-        statCard('Trabajos liberados', String(released.length))
-      );
-
-      renderMiniJobs(UI.homeRecent, jobs.slice(0, 5));
-      renderMiniAgents(UI.homeAgents, agents.slice(0, 5));
-    } catch (error) {
-      if (token !== dashboardRequest) return;
-      UI.homeStats.replaceChildren(emptyState(
-        'No se pudo cargar el resumen',
-        errorMessage(error),
-        { label: 'Reintentar', onClick: loadDashboard }
-      ));
-      UI.homeRecent.replaceChildren();
-      UI.homeAgents.replaceChildren();
-    }
-  }
+  /* ------------------------------------------------------------- estadísticas */
 
   function statCard(label, value, accent = false) {
     return el(
@@ -811,49 +769,6 @@
       el('p', { class: 'stat__label', text: label }),
       el('p', { class: `stat__value${accent ? ' stat__value--accent' : ''}`, text: value })
     );
-  }
-
-  function renderMiniJobs(container, jobs) {
-    container.replaceChildren();
-    if (!jobs.length) {
-      container.append(emptyState('Sin trabajos', 'Publica el primero para estrenar el mercado.', { label: 'Publicar trabajo', href: '#/new' }));
-      return;
-    }
-    for (const job of jobs) {
-      container.append(el(
-        'a',
-        { class: 'mini-item', href: `#/jobs/${encodeURIComponent(job.id)}` },
-        el('span', { class: 'mini-item__main' },
-          el('span', { class: 'mini-item__title', text: job.title || 'Trabajo sin título' }),
-          el('span', { class: 'mini-item__meta', text: `${stateLabel(job.state)} · ${formatDate(job.created_at)}` })
-        ),
-        el('span', { class: 'mini-item__side' },
-          el('span', { class: 'mini-item__amount', text: formatUsdc(job.amount_usdc) })
-        )
-      ));
-    }
-  }
-
-  function renderMiniAgents(container, agents) {
-    container.replaceChildren();
-    if (!agents.length) {
-      container.append(emptyState('Sin agentes', 'Todavía no hay nadie publicitándose.', { label: 'Crear agente', href: '#/agent' }));
-      return;
-    }
-    for (const agent of agents) {
-      container.append(el(
-        'a',
-        { class: 'mini-item', href: `#/agents/${encodeURIComponent(agent.id)}` },
-        el('span', { class: 'agent-avatar', 'aria-hidden': 'true', text: initials(agent.name) }),
-        el('span', { class: 'mini-item__main' },
-          el('span', { class: 'mini-item__title', text: agent.name || 'Agente' }),
-          el('span', { class: 'mini-item__meta', text: (agent.headline || (agent.especialidades || []).join(' · ')) || 'Sin descripción' })
-        ),
-        el('span', { class: 'mini-item__side' },
-          el('span', { class: 'mini-item__amount', text: agent.rate_usdc ? `desde ${formatUsdc(agent.rate_usdc)}` : 'A convenir' })
-        )
-      ));
-    }
   }
 
   /* --------------------------------------------------------------- mercado */
@@ -1528,14 +1443,14 @@
     const visited = new Set(['created']);
     for (const event of events) {
       const kind = String(event.kind || '');
-      if (kind.startsWith('estado:')) visited.add(kind.slice('estado:'.length));
-      if (kind === 'creado') visited.add('created');
-      if (kind === 'aceptado') visited.add('accepted');
-      if (kind === 'entregado') visited.add('delivered');
-      if (kind === 'validado') visited.add('validating');
-      if (kind === 'liberado') visited.add('released');
-      if (kind === 'reembolsado') visited.add('refunded');
-      if (kind === 'disputa') visited.add('disputed');
+      if (kind.startsWith('status:')) visited.add(kind.slice('status:'.length));
+      if (kind === 'created') visited.add('created');
+      if (kind === 'accepted') visited.add('accepted');
+      if (kind === 'delivered') visited.add('delivered');
+      if (kind === 'validated') visited.add('validating');
+      if (kind === 'released') visited.add('released');
+      if (kind === 'refunded') visited.add('refunded');
+      if (kind === 'disputed') visited.add('disputed');
     }
     if (job.state) visited.add(job.state);
 
@@ -2439,6 +2354,7 @@
   /* --------------------------------------------------------------- arranque */
 
   function init() {
+    if (!window.location.hash) history.replaceState(null, '', '#/market');
     loadKeys();
     bindAccount();
     bindNav();

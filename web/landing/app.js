@@ -13,12 +13,13 @@
   // se ignora la preferencia del sistema de reducir animaciones.
   var reduce = false;
   var $ = function (id) { return document.getElementById(id); };
-  var fmt = new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var HJ_LANG = (function () { try { return localStorage.getItem('hj.lang') || 'en'; } catch (e) { return 'en'; } })();
+  var fmt = new Intl.NumberFormat(HJ_LANG === 'es' ? 'es-ES' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   var ESTADOS = {
-    created: 'sin fondear', funded: 'fondos retenidos', accepted: 'en curso',
-    delivered: 'entregado', validating: 'validando', released: 'pagado',
-    refunded: 'devuelto', disputed: 'en disputa', cancelled: 'cancelado',
+    created: 'not funded', funded: 'funds held', accepted: 'in progress',
+    delivered: 'delivered', validating: 'validating', released: 'paid',
+    refunded: 'refunded', disputed: 'disputed', cancelled: 'cancelled',
   };
 
   /* ------------------------------------------------ 1. revelado al scroll */
@@ -50,9 +51,9 @@
 
   /* ------------------------------------------------ 2. tarjeta de escrow */
   var PASOS = [
-    { estado: 'retenido', fill: 18, checks: 0, sha: 'pendiente', label: 'retenido' },
-    { estado: 'validando', fill: 64, checks: 4, sha: 'ff31…a7be', label: 'validando' },
-    { estado: 'liberado', fill: 100, checks: 7, sha: 'ff31…a7be', label: 'liberado' },
+    { estado: 'held', fill: 18, checks: 0, sha: 'pending', label: 'held' },
+    { estado: 'validating', fill: 64, checks: 4, sha: 'ff31…a7be', label: 'validating' },
+    { estado: 'released', fill: 100, checks: 7, sha: 'ff31…a7be', label: 'released' },
   ];
   var checks = Array.prototype.slice.call(document.querySelectorAll('#escrow-checks li'));
   var fill = $('escrow-fill');
@@ -178,12 +179,12 @@
     var meta = document.createElement('p');
     meta.className = 'job__meta';
     var esp = (t.especialidades || []).slice(0, 2).join(' · ');
-    meta.textContent = esp || 'sin especialidad';
+    meta.textContent = esp || 'no specialty';
 
     var link = document.createElement('a');
     link.className = 'job__link';
-    link.href = '/panel/#/job/' + encodeURIComponent(t.id);
-    link.textContent = 'Ver el encargo y sus validaciones →';
+    link.href = '/panel/#/jobs/' + encodeURIComponent(t.id);
+    link.textContent = 'View the job and its validations →';
 
     art.appendChild(top);
     art.appendChild(h3);
@@ -206,7 +207,7 @@
         if (!lista.length) {
           var p = document.createElement('p');
           p.className = 'jobs__empty';
-          p.textContent = 'Todavía no hay encargos publicados. El primero puedes ser tú.';
+          p.textContent = 'No jobs published yet. You can be the first.';
           caja.appendChild(p);
         } else {
           lista.slice(0, 6).forEach(function (t, i) {
@@ -217,17 +218,17 @@
         }
         if (cuenta) {
           cuenta.textContent = lista.length
-            ? lista.length + ' encargos · leído ahora de /jobs'
-            : '0 encargos · leído ahora de /jobs';
+            ? lista.length + ' jobs · read from /jobs right now'
+            : '0 jobs · read from /jobs right now';
         }
       })
       .catch(function (e) {
         caja.innerHTML = '';
         var p = document.createElement('p');
         p.className = 'jobs__empty';
-        p.textContent = 'No he podido leer el mercado (' + e.message + '). El panel sigue disponible.';
+        p.textContent = 'Could not read the market (' + e.message + '). The panel is still available.';
         caja.appendChild(p);
-        if (cuenta) cuenta.textContent = 'sin datos';
+        if (cuenta) cuenta.textContent = 'no data';
       });
   }
   cargarMercado();
@@ -239,8 +240,8 @@
       var el = $('foot-chain');
       if (!el) return;
       el.textContent = d && d.onchain
-        ? 'contrato ' + String(d.escrow).slice(0, 10) + '… · ' + fmt.format(d.en_escrow_usdc || 0) + ' USDC retenidos'
-        : 'modo simulación (sin fondos reales)';
+        ? 'contract ' + String(d.escrow).slice(0, 10) + '… · ' + fmt.format(d.en_escrow_usdc || 0) + ' USDC held'
+        : 'simulation mode (no real funds)';
     })
     .catch(function () {});
 
@@ -252,19 +253,19 @@
       if (!pre) return;
       var texto = pre.innerText;
       var hecho = function () {
-        copy.textContent = 'Copiado';
-        window.setTimeout(function () { copy.textContent = 'Copiar'; }, 1600);
+        copy.textContent = 'Copied';
+        window.setTimeout(function () { copy.textContent = 'Copy'; }, 1600);
       };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(texto).then(hecho).catch(function () {
-          copy.textContent = 'Copia a mano';
+          copy.textContent = 'Copy manually';
         });
       } else {
         var ta = document.createElement('textarea');
         ta.value = texto;
         document.body.appendChild(ta);
         ta.select();
-        try { document.execCommand('copy'); hecho(); } catch (e) { copy.textContent = 'Copia a mano'; }
+        try { document.execCommand('copy'); hecho(); } catch (e) { copy.textContent = 'Copy manually'; }
         document.body.removeChild(ta);
       }
     });

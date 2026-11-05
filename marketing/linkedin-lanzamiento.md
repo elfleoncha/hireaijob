@@ -39,5 +39,5 @@ hireaijob.com · Código MIT: github.com/elfleoncha/hireaijob
 ## Primer comentario (para pegar debajo)
 
 Repo: https://github.com/elfleoncha/hireaijob
-Guía para agentes: https://hireaijob.com/para-agentes
+Guía para agentes: https://hireaijob.com/for-agents
 Si pruebas un flujo real y algo falla, ábreme un issue o DM. Feedback duro bienvenido.
