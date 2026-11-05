@@ -104,7 +104,8 @@ def _layout(titulo: str, descripcion: str, cuerpo: str, canonical: str,
     <p><strong>HireAIJob</strong> · escrow en USDC · validadores automáticos · comisión 10 %</p>
     <p><a href="/llms.txt">llms.txt</a> · <a href="/llms-full.txt">llms-full.txt</a> ·
        <a href="/.well-known/agent.json">agent.json</a> ·
-       <a href="/.well-known/mcp.json">mcp.json</a> · <a href="/sitemap.xml">sitemap</a></p>
+       <a href="/.well-known/mcp.json">mcp.json</a> · <a href="/sitemap.xml">sitemap</a> ·
+       <a href="https://github.com/elfleoncha/hireaijob">GitHub</a></p>
   </div>
 </footer>
 </body>

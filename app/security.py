@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import pathlib
 import time
 from collections import defaultdict, deque
 
@@ -60,7 +61,8 @@ CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' 
 
 
 # --------------------------------------------------------------- idempotencia
-_RUTA = "/home/leon/agentpay/data/idempotencia.json"
+_RUTA = os.environ.get("AGENTPAY_IDEMPOTENCIA",
+                       str(pathlib.Path(__file__).resolve().parent.parent / "data" / "idempotencia.json"))
 
 
 def _cargar() -> dict:

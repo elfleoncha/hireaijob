@@ -9,7 +9,7 @@ un navegador.
 
 Registro en Claude Desktop (~/.config/Claude/claude_desktop_config.json):
   "mcpServers": {"agentpay": {"command": "python3",
-    "args": ["/home/leon/agentpay/mcp_server.py"],
+    "args": ["/ruta/a/hireaijob/mcp_server.py"],
     "env": {"AGENTPAY_API": "https://hireaijob.com",
             "AGENTPAY_BUYER_KEY": "...", "AGENTPAY_AGENT_KEY": "..."}}}
 """

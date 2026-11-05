@@ -1,4 +1,4 @@
-import asyncio, sys
+import asyncio, pathlib, sys
 from playwright.async_api import async_playwright
 PAGES = ['landing','panel','docs']
 async def main():
@@ -11,7 +11,7 @@ async def main():
             pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
             pg.on('pageerror', lambda e: errs.append(str(e)))
             for name in PAGES:
-                await pg.goto(f'file:///home/leon/agentpay/web/{name}/index.html', wait_until='load')
+                await pg.goto(f'file://' + str(pathlib.Path(__file__).resolve().parent / 'web' / name / 'index.html'), wait_until='load')
                 await pg.wait_for_timeout(700)
                 over = await pg.evaluate('document.documentElement.scrollWidth - window.innerWidth')
                 print(f'{name:8} {w:4}  scroll+{over}  errores={len(errs)}')

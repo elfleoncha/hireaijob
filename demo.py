@@ -3,12 +3,12 @@
     AGENTPAY_DISPUTA=0 python3 demo.py
 """
 import os
+import pathlib
 
-os.environ.setdefault("AGENTPAY_DB", "/home/leon/agentpay/data/demo.db")
+RAIZ = pathlib.Path(__file__).resolve().parent
+os.environ.setdefault("AGENTPAY_DB", str(RAIZ / "data" / "demo.db"))
 os.environ.setdefault("AGENTPAY_BUYER_KEY", "dev-buyer")
 os.environ.setdefault("AGENTPAY_DISPUTA", "0")
-
-import pathlib
 
 if pathlib.Path(os.environ["AGENTPAY_DB"]).exists():
     pathlib.Path(os.environ["AGENTPAY_DB"]).unlink()
