@@ -156,6 +156,7 @@ def _estado() -> dict:
     return {
         "cadena": cadena,
         "chain_id": chain_id,
+        "pago": {"asset": "USDC", "accepted": ["USDC"], "eth": "gas only"},
         "usdc": usdc.address,
         "escrow": esc.address,
         "validador": esc.functions.validator().call(),

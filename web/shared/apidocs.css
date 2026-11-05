@@ -108,3 +108,9 @@
   .ep__params li { grid-template-columns: 1fr; gap: .15rem; }
 }
 .docside__label--gap { margin-top: 14px; }
+
+.docpay {
+  margin: 1rem 0 0; padding: .7rem .9rem;
+  border: 1px solid rgba(94,234,212,.32); border-radius: 10px;
+  background: rgba(94,234,212,.07); color: #c6cfdb; font-size: .88rem;
+}

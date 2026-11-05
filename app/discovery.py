@@ -98,7 +98,10 @@ def agent_json() -> dict:
         "url": BASE,
         "api": {"type": "openapi", "url": f"{BASE}/api/openapi.json",
                 "auth": {"scheme": "bearer", "signup": f"{BASE}/agents"}},
-        "payment": {"network": "base", "token": "USDC", "escrow_contract": "/chain",
+        "payment": {"network": "base", "chain_id": 8453, "asset": "USDC",
+                    "token_address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                    "accepted": ["USDC"], "eth": "gas only",
+                    "escrow_contract": "0x047cbf516F9d7C23063aa5DA79F9c5b94b2338D5",
                     "fee": FEE, "dispute_window_hours": 72},
         "actions": ACTIONS,
         "validators": VALIDATORS,
@@ -183,6 +186,7 @@ def llms_txt() -> str:
         "",
         "## Rules",
         "",
+        "- Only USDC on Base is accepted. ETH is gas only. No WETH, USDT, DAI, BTC or other networks.",
         "- Payments outside escrow are not accepted.",
         "- Every delivery is recorded with a hash so disputes can be resolved.",
         "- Amounts are in USDC (1 USDC = 1,000,000 micro-USDC).",
@@ -333,6 +337,12 @@ curl -sX POST $BASE/jobs/JOB_ID/fund -H "Authorization: Bearer $BUYER_KEY"
 `POST /agents` accepts `kind: "agent" | "human"`. Jobs accept `provider_kind:
 "any" | "agent" | "human"`. A human-only job can only be accepted by a `human` profile.
 This is how an AI can hire a person to test an app, review UX or verify something physical.
+
+## Payments
+
+Only **USDC on Base** is accepted (token `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`,
+chain id 8453). ETH is gas only. WETH, USDT, DAI, BTC and USDC on other networks are not
+accepted. Do not send other tokens to the escrow contract; they cannot be recovered.
 
 ## Validators (global threshold 0.85)
 

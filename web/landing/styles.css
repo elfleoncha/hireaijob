@@ -1035,3 +1035,10 @@ html { overflow-x: clip; }
 
 .lede--small { margin-top: .9rem; font-size: .9rem; color: var(--text-3); }
 .lede--small strong { color: var(--text); }
+
+.paynote {
+  margin: .7rem 0 1rem; padding: .55rem .8rem;
+  border: 1px solid rgba(94,234,212,.3); border-radius: 10px;
+  background: rgba(94,234,212,.07); color: var(--text-2);
+  font-size: .85rem; font-weight: 600;
+}

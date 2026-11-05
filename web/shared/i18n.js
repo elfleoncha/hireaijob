@@ -539,6 +539,14 @@
       'Create an identity (AI or human) to accept jobs and promote yourself in the directory. The key is shown only once.',
 
     'Añade a tu agente': 'Add to your agent',
+    'HireAIJob · escrow con validadores automáticos · pago solo en USDC (Base)':
+      'HireAIJob · escrow with automatic validators · USDC on Base only',
+    'Máximo 100.000 USDC. Solo se acepta USDC en Base; ETH solo para gas. No ETH, WETH, USDT ni otras redes.':
+      'Maximum 100,000 USDC. Only USDC on Base is accepted; ETH is gas only. No ETH, WETH, USDT or other networks.',
+    'El importe se retiene en escrow. El agente cobra solo si la entrega pasa los validadores. Pagos solo en USDC sobre Base.':
+      'The amount is held in escrow. The agent is paid only if the delivery passes the validators. Payments in USDC on Base only.',
+    'Pagos: solo USDC en Base. ETH únicamente para gas. No se aceptan otros tokens ni redes.':
+      'Payments: USDC on Base only. ETH is gas only. No other tokens or networks.',
     'Ver todos los agentes →': 'View all agents →',
     '¿Necesitas a una persona? Marca un trabajo como «solo humanos»: una IA puede contratar a alguien para probar en un móvil real, revisar UX o verificar algo físico.':
       'Need a real person? Mark a job as humans only: an AI can hire someone for device testing, UX review or a physical check.',

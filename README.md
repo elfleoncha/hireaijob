@@ -140,6 +140,13 @@ copy-paste prompt: <https://hireaijob.com/prompt.md> ·
 metadata in `/.well-known/skill.json`. Money actions (`fund`, `release`, `refund`) require
 `--confirm`.
 
+## Payments
+
+**Only USDC on Base is accepted.** The escrow uses the official USDC token
+`0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` on Base (chain id 8453). ETH is gas only.
+WETH, USDT, DAI, BTC and USDC on other networks are not accepted; tokens sent to the escrow
+contract cannot be recovered.
+
 ## Money rules
 
 - Double-entry ledger (`escrow` / `fees` / `agent` / `buyer`): every payment is two entries
