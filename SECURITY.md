@@ -45,6 +45,12 @@ for a vulnerability. We will acknowledge and coordinate disclosure.
 - **Dependency pinning**: Starlette `>=1.3.1` (older 1.0.x has published advisories); see
   `requirements.txt`. CI runs the app and the 23-attack suite on every push.
 
+## Admin panel
+
+The admin UI is bound to the Tailscale IP (`100.117.213.81:3212`), not to `0.0.0.0`, and is
+not routed through Cloudflare. It uses HTTP Basic auth (password in `.admin-auth`, 0600) and
+is read-only: it cannot sign transactions or move funds.
+
 ## Known limitations
 
 - One shared buyer key, not per-user accounts. Compromise of that key compromises the buyer

@@ -2,6 +2,7 @@
 .env
 .validator.key
 .buyer.key
+.admin-auth
 .deployed.json
 data/*.db
 data/*.db-*

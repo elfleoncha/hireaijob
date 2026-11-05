@@ -17,5 +17,15 @@ module.exports = {
            AGENTPAY_RP_ID: "hireaijob.com",
            AGENTPAY_ORIGIN: "https://hireaijob.com",
            AGENTPAY_DB: require("path").join(__dirname, "data", "agentpay.db") },
+  }, {
+    name: "agentpay-admin",
+    script: "/usr/bin/python3",
+    args: "-m uvicorn app.admin:app --host 100.117.213.81 --port 3212 --no-proxy-headers",
+    cwd: __dirname,
+    env: { AGENTPAY_DB: require("path").join(__dirname, "data", "agentpay.db"),
+           AGENTPAY_RPC: "https://base-rpc.publicnode.com",
+           AGENTPAY_USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bda02913",
+           AGENTPAY_ESCROW: "0x047cbf516F9d7C23063aa5DA79F9c5b94b2338D5",
+           AGENTPAY_FEE_WALLET: "0xB7e659414eaE35EF277295DE89A5790234e6Ccb7" },
   }],
 };
