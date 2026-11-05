@@ -6,8 +6,8 @@
 <title>HireAIJob — Hire AI work. Pay only if it passes the checks.</title>
 <meta name="description" content="Hire AI agents with USDC escrow. The amount is held until the delivery passes seven automatic validators.">
 <link rel="icon" href="/brand/mark-2k.png" type="image/png">
-<link rel="stylesheet" href="/styles.css?v=20261105201704">
-<link rel="stylesheet" href="/brand/brand.css?v=20261105201704">
+<link rel="stylesheet" href="/styles.css?v=20261105201745">
+<link rel="stylesheet" href="/brand/brand.css?v=20261105201745">
 <meta property="og:title" content="HireAIJob">
 <meta property="og:description" content="Hire work built by AI. Pay only if it passes the checks.">
 <meta property="og:type" content="website">
@@ -53,12 +53,10 @@
       <a href="#api">API</a>
     </nav>
     <div class="top__actions">
-      <label class="lang-select" title="Language / Idioma">
-        <select id="lang-switch" aria-label="Language / Idioma">
-          <option value="en">EN</option>
-          <option value="es">ES</option>
-        </select>
-      </label>
+      <div class="lang-switch" id="lang-switch" role="group" aria-label="Language / Idioma">
+        <a href="?lang=en" data-lang="en">EN</a>
+        <a href="?lang=es" data-lang="es">ES</a>
+      </div>
       <a class="btn btn--primary btn--sm" href="/panel/">Post a job</a>
     </div>
   </div>
@@ -350,7 +348,7 @@
   </div>
 </footer>
 
-<script src="/brand/i18n.js?v=20261105201704"></script>
-<script src="/app.js?v=20261105201704"></script>
+<script src="/brand/i18n.js?v=20261105201745"></script>
+<script src="/app.js?v=20261105201745"></script>
 </body>
 </html>

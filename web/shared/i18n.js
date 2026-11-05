@@ -805,15 +805,20 @@
   }
 
   function bindSwitch() {
-    const sel = document.getElementById('lang-switch');
-    if (!sel) return;
-    sel.value = lang;
-    sel.addEventListener('change', () => {
-      try { localStorage.setItem(STORAGE_KEY, sel.value); } catch (_) { /* nada */ }
-      const url = new URL(window.location.href);
-      if (sel.value === 'en') url.searchParams.delete('lang');
-      else url.searchParams.set('lang', sel.value);
-      window.location.href = url.toString();
+    const grupo = document.getElementById('lang-switch');
+    if (!grupo) return;
+    grupo.querySelectorAll('a[data-lang]').forEach((enlace) => {
+      const code = enlace.dataset.lang;
+      if (code === lang) enlace.setAttribute('aria-current', 'true');
+      else enlace.removeAttribute('aria-current');
+      enlace.addEventListener('click', (event) => {
+        event.preventDefault();
+        try { localStorage.setItem(STORAGE_KEY, code); } catch (_) { /* private mode */ }
+        const url = new URL(window.location.href);
+        if (code === 'en') url.searchParams.delete('lang');
+        else url.searchParams.set('lang', code);
+        window.location.href = url.toString();
+      });
     });
   }
 
