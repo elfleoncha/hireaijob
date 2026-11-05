@@ -37,6 +37,20 @@ app = FastAPI(title="HireAIJob API", version="0.1", docs_url=None,
 async def blindaje(request: Request, call_next):
     ip = security._ip(request)
     ruta = request.url.path
+    # Cloudflare entrega HTTP y HTTPS por el mismo túnel: forzamos HTTPS en el borde.
+    cf = request.headers.get("cf-visitor", "")
+    proto = request.headers.get("x-forwarded-proto", "")
+    if ('"scheme":"http"' in cf.replace(" ", "") or proto.lower() == "http"):
+        destino = "https://hireaijob.com" + request.url.path
+        if request.url.query:
+            destino += "?" + request.url.query
+        codigo = 301 if request.method in ("GET", "HEAD") else 308
+        return RedirectResponse(destino, status_code=codigo)
+    if request.url.hostname == "www.hireaijob.com":
+        destino = "https://hireaijob.com" + request.url.path
+        if request.url.query:
+            destino += "?" + request.url.query
+        return RedirectResponse(destino, status_code=301)
     tope = security.RPM if request.method in ("GET", "HEAD") else security.RPM_ESCRITURA
     if not security.limite_ok(ip, tope):
         return JSONResponse({"detail": "too many requests, wait a minute"}, status_code=429)
