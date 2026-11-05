@@ -47,8 +47,9 @@ for a vulnerability. We will acknowledge and coordinate disclosure.
 
 ## Admin panel
 
-The admin UI is bound to the Tailscale IP (`100.117.213.81:3212`), not to `0.0.0.0`, and is
-not routed through Cloudflare. It uses HTTP Basic auth (password in `.admin-auth`, 0600) and
+The admin UI is served over **Tailscale Serve** at `https://fleoserv.tail41239e.ts.net/`
+(tailnet-only, Let's Encrypt certificate). The app listens on `127.0.0.1:3212`, not on
+`0.0.0.0`, and is not routed through Cloudflare. It uses HTTP Basic auth (password in `.admin-auth`, 0600) and
 is read-only: it cannot sign transactions or move funds.
 
 ## Known limitations

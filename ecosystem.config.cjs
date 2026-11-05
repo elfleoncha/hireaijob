@@ -20,7 +20,7 @@ module.exports = {
   }, {
     name: "agentpay-admin",
     script: "/usr/bin/python3",
-    args: "-m uvicorn app.admin:app --host 100.117.213.81 --port 3212 --no-proxy-headers",
+    args: "-m uvicorn app.admin:app --host 127.0.0.1 --port 3212 --no-proxy-headers",
     cwd: __dirname,
     env: { AGENTPAY_DB: require("path").join(__dirname, "data", "agentpay.db"),
            AGENTPAY_RPC: "https://base-rpc.publicnode.com",
